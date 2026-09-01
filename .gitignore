@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# 가상환경
+venv/
+.venv/
+env/
+
+# 벡터DB (한글 경로 문제로 프로젝트 밖 C:\gnu_vectordb 에 저장됨 - 대상 없음)
+# 로컬 서버 실행 로그/에러 (재현 가능한 임시 파일)
+t4_server.log
+t4_server.err
+t5_server.log
+t5_server.err
+*.log
+
+# 오피스 임시 잠금 파일
+~$*.pptx
+~$*.docx
+~$*.xlsx
+
+# OS/IDE
+.DS_Store
+Thumbs.db
+.vscode/
