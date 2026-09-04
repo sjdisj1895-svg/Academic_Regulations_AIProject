@@ -8,9 +8,13 @@
 
 API 문서(Swagger UI): http://127.0.0.1:8000/docs
 """
+import json
 import os
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+from datetime import datetime
+from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,6 +26,7 @@ WEB_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from search_engine import SearchEngine
+import rag_engine
 
 app = FastAPI(
     title="경상국립대학교 규정 통합 검색 API",
@@ -34,7 +39,7 @@ app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
 )
 
-_engine: SearchEngine | None = None
+_engine: Optional[SearchEngine] = None
 
 
 def get_engine() -> SearchEngine:
@@ -93,6 +98,24 @@ class ChunkDetailResponse(BaseModel):
     law_url: str = ""
 
 
+class AskRequest(BaseModel):
+    question: str
+    top_k: int = 5
+    source: Optional[list[str]] = None
+    category: Optional[list[str]] = None
+
+
+class AskResponse(BaseModel):
+    query: str
+    found: bool
+    answer: str
+    used_llm: bool
+    results: list[SearchResultItem]
+    related_regulations: list[str]
+    took_ms: float
+    suggestions: list[str] = []
+
+
 class RegulationDetailResponse(BaseModel):
     id: str
     source: str
@@ -111,7 +134,7 @@ def api_info():
     return {
         "name": "경상국립대학교 규정 통합 검색 API",
         "docs": "/docs",
-        "endpoints": ["/api/search", "/api/chunks/{chunk_id}",
+        "endpoints": ["/api/search", "/api/ask", "/api/chunks/{chunk_id}",
                      "/api/regulations/{reg_id}", "/api/filters"],
     }
 
@@ -129,9 +152,9 @@ def get_filters():
 def search(
     q: str = Query(..., min_length=1, description="검색어 (단어 또는 자연어 문장)"),
     top_k: int = Query(10, ge=1, le=50, description="반환할 결과 개수"),
-    source: list[str] | None = Query(
+    source: Optional[list[str]] = Query(
         None, description="출처 필터: 대학, 산학협력단 (복수 선택 가능)"),
-    category: list[str] | None = Query(
+    category: Optional[list[str]] = Query(
         None, description="카테고리 필터: 학칙, 규정, 지침, 제N편… (복수 선택 가능)"),
 ):
     engine = get_engine()
@@ -149,6 +172,122 @@ def search(
     if result["total"] == 0:
         return {**result, "results": [], "related_regulations": []}
     return result
+
+
+# /api/ask 전용: 관련 조항이 없을 때 안내할 추천 검색어 (기존 웹 화면의 "결과 없음" 추천 칩과 동일)
+ASK_SUGGESTIONS = ["연구비", "휴학", "장학", "등록금", "성적", "수강신청"]
+
+# LLM 답변 생성은 로컬 모델 기준 수십 초가 걸릴 수 있어, 별도 스레드에서 실행 후
+# 타임아웃이 지나면 "생성 지연" 안내와 함께 검색 결과만이라도 반환한다.
+ASK_TIMEOUT_SEC = float(os.environ.get("GNU_RAG_ASK_TIMEOUT", "60"))
+_ask_executor = ThreadPoolExecutor(max_workers=2)
+
+# T10: 질문·답변 로그 (data/rag_logs/YYYY-MM-DD.jsonl, 하루 1개 파일)
+LOGS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "rag_logs")
+
+
+def _log_ask_interaction(question: str, chunk_ids: list, answer: str, took_ms: float,
+                          found: bool, used_llm: bool, status: str):
+    """/api/ask 호출마다 [질문, 근거 조항 id, 답변, 응답시간, 성공/거절 여부]를 로그 파일에 남긴다.
+
+    질문자를 식별할 수 있는 정보(IP, 세션, 계정 등)는 이 API 자체가 받지도 않으므로 저장하지 않는다.
+    로그 기록이 실패해도 API 응답 자체에는 영향을 주지 않는다 (안내만 남기고 계속 진행).
+    """
+    try:
+        os.makedirs(LOGS_DIR, exist_ok=True)
+        day = datetime.now().strftime("%Y-%m-%d")
+        path = os.path.join(LOGS_DIR, f"{day}.jsonl")
+        entry = {
+            "timestamp": datetime.now().isoformat(timespec="seconds"),
+            "question": question,
+            "chunk_ids": chunk_ids,
+            "answer": answer,
+            "took_ms": took_ms,
+            "found": found,
+            "used_llm": used_llm,
+            "status": status,  # answered | refused | fallback_no_llm | timeout | error
+            "backend": "external_api" if os.environ.get("GNU_RAG_API_KEY") else "local",
+        }
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception as e:
+        print(f"[RAG] 경고: 질문·답변 로그 기록 실패 ({e})")
+
+
+def _search_only_fallback(req: "AskRequest", took_ms: float, message: str, status: str):
+    """T10: LLM 호출이 실패하거나 시간이 너무 오래 걸릴 때, 에러 대신 검색 결과만이라도
+    보여주는 안전장치. 검색 자체는 하이브리드 검색이라 보통 0.1초 내외로 매우 빠르다.
+    """
+    search_result = get_engine().search(req.question, top_k=req.top_k,
+                                         sources=req.source, categories=req.category)
+    found = search_result["total"] > 0
+    _log_ask_interaction(
+        req.question, [r["chunk_id"] for r in search_result["results"]], message,
+        took_ms, found, False, status)
+    return {
+        "query": req.question,
+        "found": found,
+        "answer": message,
+        "used_llm": False,
+        "results": search_result["results"],
+        "related_regulations": search_result["related_regulations"],
+        "took_ms": took_ms,
+        "suggestions": [] if found else ASK_SUGGESTIONS,
+    }
+
+
+@app.post("/api/ask", response_model=AskResponse, tags=["AI 질의응답"],
+          summary="RAG 기반 AI 답변 생성 (질문 → 관련 조항 검색 → AI 답변)")
+def ask(req: AskRequest):
+    if not req.question.strip():
+        raise HTTPException(status_code=400, detail="질문(question)을 입력해주세요.")
+
+    t0 = time.time()
+    future = _ask_executor.submit(
+        rag_engine.answer, req.question, top_k=req.top_k,
+        sources=req.source, categories=req.category,
+    )
+    try:
+        result = future.result(timeout=ASK_TIMEOUT_SEC)
+    except FutureTimeoutError:
+        took_ms = round((time.time() - t0) * 1000, 1)
+        # 타임아웃이어도 검색 자체는 빠르므로(기존 /api/search 실측 0.1초 내외),
+        # 별도로 검색만 재수행해 결과는 보여주고 답변만 "생성 지연"으로 안내한다.
+        message = (f"[AI 답변 생성이 {ASK_TIMEOUT_SEC:.0f}초를 초과해 시간 초과되었습니다. "
+                   f"아래 검색 결과를 참고해주세요.]")
+        return _search_only_fallback(req, took_ms, message, status="timeout")
+    except Exception as e:
+        # LLM/검색 파이프라인에서 예상 못한 오류가 나도 500 에러로 화면을 막지 않고,
+        # 검색 결과만이라도 안전하게 보여주는 "검색 전용 모드"로 전환한다.
+        took_ms = round((time.time() - t0) * 1000, 1)
+        print(f"[RAG] 경고: /api/ask 처리 중 오류 발생 ({e}). 검색 결과만 반환합니다.")
+        message = "[AI 답변 생성 중 오류가 발생해 검색 결과만 반환합니다. 잠시 후 다시 시도해주세요.]"
+        try:
+            return _search_only_fallback(req, took_ms, message, status="error")
+        except Exception as inner_e:
+            # 검색 엔진 자체도 응답할 수 없는 극단적인 경우에만 최종적으로 500을 반환한다.
+            raise HTTPException(status_code=500, detail=f"답변 생성 중 오류가 발생했습니다: {inner_e}")
+
+    took_ms = round((time.time() - t0) * 1000, 1)
+    search_result = result["search_result"]
+    found = result["found"]
+    used_llm = result["used_llm"]
+    status = "answered" if used_llm else ("refused" if not found else "fallback_no_llm")
+
+    _log_ask_interaction(
+        req.question, [r["chunk_id"] for r in search_result["results"]], result["answer"],
+        took_ms, found, used_llm, status)
+
+    return {
+        "query": req.question,
+        "found": found,
+        "answer": result["answer"],
+        "used_llm": used_llm,
+        "results": search_result["results"],
+        "related_regulations": search_result["related_regulations"],
+        "took_ms": took_ms,
+        "suggestions": [] if found else ASK_SUGGESTIONS,
+    }
 
 
 @app.get("/api/chunks/{chunk_id:path}", response_model=ChunkDetailResponse,

@@ -16,6 +16,7 @@ import math
 import os
 import re
 import sys
+from typing import Optional, Tuple
 
 sys.path.insert(0, os.path.dirname(__file__))
 from common import fetch, strip_tags, clean_text, safe_filename
@@ -85,9 +86,34 @@ def total_count(html: str) -> int:
     return int(m.group(1).replace(",", "")) if m else 0
 
 
+# law.go.kr 페이지는 조문이 시작되기 직전에
+# "경상국립대학교 OO처(OO과), 000-000-0000" 형식으로 실제 담당부서·연락처를 표시한다.
+# (예: "경상국립대학교 교무처(교무과), 055-772-0102")
+CONTACT_LINE_RE = re.compile(r"^(.{2,40}),\s*(\d[\d\-]{6,17})\s*$", re.M)
+
+
+def _extract_contact(header_text: str) -> Optional[str]:
+    """본문 시작 전 헤더 영역에서 '담당부서, 전화번호' 줄을 찾아 '부서 전화번호' 형태로 반환한다.
+    여러 줄 중 본문(조문)에 가장 가까운(마지막) 매치를 사용한다.
+    """
+    matches = list(CONTACT_LINE_RE.finditer(header_text))
+    if not matches:
+        return None
+    dept, phone = matches[-1].group(1).strip(), matches[-1].group(2).strip()
+    dept = re.sub(r"^(경상국립대학교|경남과학기술대학교)\s*", "", dept)  # 대학명 접두사 제거
+    return f"{dept} {phone}"
+
+
 # ------------------------------------------------------- law.go.kr 전문 추출
-def law_fulltext(seq: str) -> str:
-    """국가법령정보센터에서 규정 전문 텍스트를 가져온다."""
+def law_fulltext(seq: str) -> Tuple[str, Optional[str]]:
+    """국가법령정보센터에서 규정 전문 텍스트와 실제 담당부서·연락처를 가져온다.
+
+    반환값: (본문 텍스트, "담당부서 전화번호" 문자열 또는 못 찾으면 None)
+
+    이전에는 본문을 "제1장/제1조"부터만 잘라 쓰면서, 그 바로 위에 있던 실제
+    담당부서·연락처 줄을 화면 메뉴 텍스트로 오인해 함께 버리고 있었다. 그 결과
+    모든 규정에 사이트 대표번호(SITE_CONTACT)만 고정으로 채워지고 있었다.
+    """
     html = fetch("https://www.law.go.kr/LSW/schlPubRulInfoR.do",
                  params={"schlPubRulSeq": seq, "joTpYn": "Y",
                          "languageType": "KO", "chrClsCd": "010202"},
@@ -96,21 +122,22 @@ def law_fulltext(seq: str) -> str:
     # 본문 시작(첫 조문/장) 이전의 화면 메뉴 텍스트 제거
     m = re.search(r"(제\s*1\s*장|제\s*1\s*조)", full)
     if m:
-        text = full[m.start():]
+        header, text = full[:m.start()], full[m.start():]
         if re.search(r"제\s*\d+\s*조", text):
-            return clean_text(text)
+            return clean_text(text), _extract_contact(header)
     # 조문 구조가 없는 규정(윤리강령·폐지 규정 등): '[시행 ...]' 표기부터 본문 추출
     m = re.search(r"\[\s*시행\s*[\d.\s]+\]", full)
     if m:
         # 규정명이 [시행] 바로 앞 줄에 있으므로 그 줄부터 시작
         start = full.rfind("\n", 0, m.start())
+        header = full[:start + 1 if start >= 0 else 0]
         body = clean_text(full[start + 1 if start >= 0 else 0:])
         if len(body) > 50:
-            return body
+            return body, _extract_contact(header)
     raise RuntimeError(f"law.go.kr 전문에서 본문을 찾지 못함 (seq={seq})")
 
 
-def find_law_seq(html: str) -> str | None:
+def find_law_seq(html: str) -> Optional[str]:
     m = re.search(r"schlPubRulInfoP\.do\?schlPubRulSeq=(\d+)", html)
     return m.group(1) if m else None
 
@@ -153,10 +180,10 @@ def collect_hakchik(done: dict, errors: list):
         m = (re.search(r'id="schlPubRulNm"[^>]*value="([^"]+)"', info_p)
              or re.search(r'name="schlPubRulNm"[^>]*value="([^"]+)"', info_p))
         name = m.group(1).strip() if m else "경상국립대학교 학칙"
-        body = law_fulltext(seq)
+        body, law_contact = law_fulltext(seq)
         meta = {
             "id": key, "source": "대학", "category": "학칙", "name": name,
-            "department": "총무과", "contact": SITE_CONTACT, "rule_no": "",
+            "department": "총무과", "contact": law_contact or SITE_CONTACT, "rule_no": "",
             "date": "", "source_url": HAKCHIK_URL,
             "law_url": f"https://www.law.go.kr/LSW/schlPubRulInfoP.do?schlPubRulSeq={seq}",
         }
@@ -196,11 +223,11 @@ def collect_board(category: str, cfg: dict, done: dict, errors: list):
                 seq = find_law_seq(detail)
                 if not seq:
                     raise RuntimeError("상세 페이지에 law.go.kr 전문 링크 없음")
-                body = law_fulltext(seq)
+                body, law_contact = law_fulltext(seq)
                 meta = {
                     "id": key, "source": "대학", "category": category,
                     "name": row["name"], "department": row["department"],
-                    "contact": SITE_CONTACT, "rule_no": row["rule_no"],
+                    "contact": law_contact or SITE_CONTACT, "rule_no": row["rule_no"],
                     "date": row["date"], "source_url": detail_url,
                     "law_url": f"https://www.law.go.kr/LSW/schlPubRulInfoP.do?schlPubRulSeq={seq}",
                 }

@@ -149,7 +149,100 @@ python scripts/export_contacts.py
 
 ---
 
-## 6. 자주 발생하는 문제와 해결 방법
+## 6. AI에게 질문하기(RAG 챗봇) 기능 안내
+
+검색 화면 위쪽의 **"AI에게 질문하기"** 탭을 누르면, 검색어 대신 자연스러운 문장으로 질문할 수
+있고 AI가 관련 규정을 찾아 답변 문장으로 정리해줍니다 (예: "연구비 지원 한도가 얼마야?").
+답변 아래에는 항상 근거로 사용한 조항이 검색 결과와 같은 형태로 함께 표시됩니다.
+
+> ⚠️ AI가 생성한 답변은 참고용이며, **법적 효력은 항상 원본 규정을 따릅니다.**
+> 화면에도 매 답변마다 이 안내 문구가 함께 표시됩니다.
+
+### 6-1. 실행 방법 (기본 — 로컬 AI 모델, 추가 설정 없음)
+
+"AI에게 질문하기" 기능은 **2번 항목의 서버 실행 명령을 그대로 사용**하며, 별도로 켜고 끄는
+스위치가 없습니다. 서버(`python -m uvicorn scripts.api_server:app --port 8000`)를 실행하면
+검색 기능과 AI 질문 기능이 함께 켜집니다.
+
+- 기본적으로 인터넷에 있는 유료 AI가 아니라, **컴퓨터 안에서 무료로 동작하는 AI 모델**
+  (Qwen2.5-1.5B-Instruct)을 사용합니다. 최초 1회 질문 시 모델을 내려받고 준비하는 데
+  20~45초 정도 걸릴 수 있고, 답변 하나를 만드는 데 보통 **20~80초** 정도 걸립니다
+  (검색은 그대로 0.1초 내외로 빠릅니다 — AI가 "문장을 다듬는" 부분만 시간이 걸립니다).
+- 컴퓨터에 GPU가 없어도 동작하지만, 답변 속도가 느리게 느껴질 수 있습니다. 이는 정상입니다.
+
+### 6-2. (선택) 더 빠르고 정확한 유료 AI로 바꾸는 방법
+
+예산이 확보되어 OpenAI 등 외부 유료 AI 서비스를 쓰고 싶다면, 개발 담당자에게 요청해
+아래 환경변수를 서버를 실행하는 컴퓨터에 설정하면 됩니다 (코드 수정 불필요).
+
+| 환경변수 | 설명 |
+|---|---|
+| `GNU_RAG_API_KEY` | 외부 API 키 (이 값이 설정되면 로컬 AI 대신 자동으로 외부 API를 사용합니다) |
+| `GNU_RAG_API_BASE` | API 주소 (기본값: `https://api.openai.com/v1`) |
+| `GNU_RAG_API_MODEL` | 사용할 모델명 (기본값: `gpt-4o-mini`) |
+
+> 🔐 API 키는 비밀번호와 같으므로 문서나 채팅으로 공유하지 말고, 서버 컴퓨터의 환경변수로만
+> 등록하세요. 외부 API를 쓰면 질문 내용이 외부(해당 AI 회사)로 전송되므로, 민감한 내용이
+> 없는지 먼저 개발 담당자와 상의하세요.
+
+### 6-3. 답변이 이상하다고 느껴질 때 확인·보고하는 방법
+
+1. 먼저 화면에 함께 표시된 **근거 조항**(규정명·조항번호)을 눌러 미리보기로 원문을 확인하세요.
+   근거 조항의 원문 내용과 AI 답변이 실제로 일치하는지 비교해보세요.
+2. 답변 끝에 `⚠️ [자동 검증 경고]`라는 문구가 붙어 있다면, AI가 근거 조항 목록에 없는
+   규정명을 인용했다는 뜻입니다. 이 경우 답변을 그대로 믿지 말고 근거 조항 원문을 다시
+   확인하세요 (환각 방지 안전장치가 자동으로 알려주는 것입니다).
+3. 근거 조항과 답변이 명백히 다르거나, 참고자료에 없는 구체적인 숫자·규정명이 나온다면
+   **질문 내용과 화면 캡처**를 개발 담당자에게 전달해주세요. (6-4번 항목의 로그로도 같은
+   내용을 다시 확인할 수 있습니다)
+4. 근거 조항이 전혀 없이 "해당 내용은 규정에서 찾을 수 없습니다"라고 나온다면, 정말 규정에
+   없는 내용이거나 검색어를 더 구체적으로 바꿔봐야 하는 경우입니다 — AI가 지어내지 않고
+   정상적으로 거절한 것이므로 오류가 아닙니다.
+
+### 6-4. 질문·답변 로그 확인 방법
+
+"AI에게 질문하기"로 들어온 모든 질문과 답변은 아래 위치에 **하루 1개 파일**로 자동
+기록됩니다. (질문자를 알아볼 수 있는 정보(이름·IP·로그인 계정 등)는 이 기능 자체가 받지
+않으므로 저장되지 않습니다 — 질문·답변 내용과 처리 결과만 기록됩니다)
+
+```
+data/rag_logs/2026-09-03.jsonl   (날짜별 파일, 하루치 질문·답변)
+```
+
+파일은 한 줄에 하나씩 아래와 같은 정보가 기록됩니다: 질문, 근거로 쓰인 조항 ID, 답변,
+응답 시간(ms), 관련 근거 발견 여부, AI 실제 사용 여부, 처리 결과(`answered`=정상 답변,
+`refused`=근거 없어 거절, `fallback_no_llm`=장애로 검색 결과만 반환, `timeout`=시간 초과,
+`error`=오류). 메모장이나 엑셀(텍스트 가져오기)로 열어볼 수 있습니다.
+
+### 6-5. 외부 API 비용 확인 방법 (6-2번처럼 유료 API를 쓰는 경우만 해당)
+
+**로컬 AI(기본값)만 사용 중이라면 이 항목은 확인할 필요가 없습니다 — 비용이 전혀 발생하지
+않습니다.** 외부 유료 API로 바꾼 경우에만, 아래 명령으로 호출 횟수와 대략적인 예상 비용을
+확인할 수 있습니다.
+
+```powershell
+python scripts/rag_cost_report.py
+```
+
+```
+[백엔드별 호출 수]
+  외부 API(유료): 42건
+[비용 추정] 외부 API 호출 42건 x 건당 예상 $0.001 ≈ 약 $0.0420
+```
+
+> 📌 이 비용은 **대략적인 추정치**입니다. 실제 청구 금액은 반드시 사용 중인 API
+> 제공사(OpenAI 등)의 결제 대시보드에서 확인하세요.
+
+### 6-6. LLM 장애 시 자동 대응 (참고)
+
+AI(LLM) 응답이 60초를 넘게 오래 걸리거나 오류가 나면, 시스템이 자동으로 **"검색 결과만
+보여주는 모드"**로 전환되어 화면이 멈추지 않고 검색 결과라도 바로 보여줍니다. 사용자는
+별도 조치 없이 화면의 "검색 결과를 참고해주세요" 안내를 보면 되고, 필요하면 잠시 후
+다시 질문하면 됩니다.
+
+---
+
+## 7. 자주 발생하는 문제와 해결 방법
 
 ### Q1. 브라우저에서 `http://127.0.0.1:8000/`이 안 열려요.
 - 서버(2번 항목)를 먼저 실행했는지 확인하세요. 검은 화면(명령 프롬프트)에
@@ -189,7 +282,7 @@ python scripts/export_contacts.py
 
 ---
 
-## 7. 시스템 구성 요약 (참고용)
+## 8. 시스템 구성 요약 (참고용)
 
 | 항목 | 위치 |
 |---|---|
@@ -197,9 +290,178 @@ python scripts/export_contacts.py
 | 전체 규정 목록 | `data/regulations.json` |
 | 조항 단위로 잘린 데이터 | `data/chunks.json` |
 | 검색용 AI 데이터베이스(벡터DB) | `C:\gnu_vectordb` |
-| 검색 서버 프로그램 | `scripts/api_server.py` |
+| 검색 서버 프로그램 (검색 API + AI 질문 API) | `scripts/api_server.py` |
+| RAG(AI 질문) 핵심 엔진 | `scripts/rag_engine.py` |
 | 웹 화면 | `web/index.html`, `web/style.css`, `web/app.js` |
 | 검색 품질 점검 결과 | `data/search_quality_report.json` |
+| AI 질문(RAG) 품질 점검 결과 | `data/rag_quality_report.json` |
+| AI 질문·답변 로그 (날짜별) | `data/rag_logs/*.jsonl` |
 | 담당부서 검수용 파일 | `data/contacts_for_review.csv`, `.md` |
+
+---
+
+## 9. Linux 서버로 배포하기 (운영 서버 이전 안내)
+
+지금까지는 담당자 개인 PC(Windows)에서 실행해왔지만, **여러 사람이 함께 쓰는 정식
+서버(Linux)로 옮길 때** 필요한 절차를 정리했습니다. Windows에서와 다른 점 위주로
+설명하며, 리눅스 명령어에 익숙하지 않아도 따라 할 수 있도록 그대로 복사해 쓸 수 있는
+명령을 적었습니다. (배포판은 Ubuntu/Debian 계열 기준이며, `apt` 대신 `dnf`/`yum`을
+쓰는 배포판은 설치 명령만 다르고 나머지는 동일합니다)
+
+### 9-1. 서버에 필요한 것 설치
+
+```bash
+sudo apt update
+sudo apt install -y python3 python3-pip python3-venv git
+```
+
+### 9-2. 코드 가져오기 (Git)
+
+팀 내부 Git 서버(또는 GitHub 등)에 이 프로젝트가 올라가 있다면, 서버에서 그대로
+내려받습니다.
+
+```bash
+git clone <팀 Git 저장소 주소> academic_regulations_ai
+cd academic_regulations_ai
+```
+
+### 9-3. 파이썬 가상환경 만들고 필요한 패키지 설치
+
+여러 프로그램이 서로 다른 버전의 패키지를 요구할 때 충돌하지 않도록, **가상환경**
+안에서 설치합니다 (Windows에서는 생략했지만 리눅스 서버에서는 권장되는 방식입니다).
+
+```bash
+python3 -m venv venv
+source venv/bin/activate            # 이후 "(venv)"가 프롬프트 앞에 붙으면 성공
+pip install sentence-transformers chromadb fastapi uvicorn
+```
+
+> 매번 서버에 접속해서 이 프로젝트를 실행할 때는 `source venv/bin/activate`를
+> 먼저 입력해야 합니다 (가상환경 켜기).
+
+### 9-4. ⚠️ 벡터DB 저장 경로를 반드시 지정하기 (Windows와 가장 다른 부분)
+
+`scripts/search_engine.py`와 `scripts/build_vectordb.py`는 벡터DB 저장 위치의
+기본값이 **`C:\gnu_vectordb`(Windows 전용 경로)** 로 되어 있습니다. 리눅스에는
+`C:\` 드라이브가 없으므로, 이 기본값을 그대로 두면 엉뚱한 이름의 폴더가 생기거나
+오류가 납니다. **반드시 환경변수로 리눅스 경로를 지정**해주세요.
+
+```bash
+export GNU_VECTORDB=/var/lib/gnu_vectordb    # 원하는 경로로 바꿔도 됨
+mkdir -p "$GNU_VECTORDB"
+```
+
+> 📌 매번 새 터미널을 열 때마다 다시 설정해야 하므로, 아래처럼 `~/.bashrc`(사용자
+> 설정 파일)에 한 줄 추가해두면 편합니다.
+> ```bash
+> echo 'export GNU_VECTORDB=/var/lib/gnu_vectordb' >> ~/.bashrc
+> source ~/.bashrc
+> ```
+> (또는 9-6의 systemd 서비스 파일에 `Environment=` 항목으로 지정해도 됩니다)
+
+### 9-5. 데이터 준비 (최초 1회, 규정 원문 수집 → 청킹 → 벡터DB 생성)
+
+```bash
+python scripts/collect_all.py          # 규정 원문 수집 (약 20~30분)
+python scripts/chunk_rules.py          # 조·항 단위 청킹 (몇 초)
+python scripts/build_vectordb.py       # 임베딩 + 벡터DB 생성 (약 10~15분)
+python scripts/evaluate_search.py --direct   # 검색 품질 확인 (선택)
+```
+
+(이후 규정이 개정되면 Windows에서와 동일하게 `python scripts/refresh_all.py`
+한 줄로 갱신할 수 있습니다. `GNU_VECTORDB` 환경변수는 계속 같은 값으로 유지하세요)
+
+### 9-6. 서버를 "꺼지지 않게" 실행하기 (systemd 서비스 등록)
+
+Windows에서는 검은 명령 프롬프트 창을 계속 열어둬야 서버가 유지됐지만, 리눅스
+서버에서는 **`systemd`라는 시스템에 등록**해두면 터미널을 닫아도, 심지어 서버를
+재부팅해도 자동으로 다시 켜집니다. (운영 서버라면 꼭 이 방식을 쓰세요)
+
+1. 서비스 파일을 만듭니다.
+
+   ```bash
+   sudo nano /etc/systemd/system/gnu-regulation-search.service
+   ```
+
+2. 아래 내용을 넣습니다 (경로·계정명은 실제 환경에 맞게 수정).
+
+   ```ini
+   [Unit]
+   Description=GNU 규정 통합 검색 + AI 질문 서버
+   After=network.target
+
+   [Service]
+   Type=simple
+   User=<서버에서 쓸 계정명>
+   WorkingDirectory=/home/<계정명>/academic_regulations_ai
+   Environment=GNU_VECTORDB=/var/lib/gnu_vectordb
+   ExecStart=/home/<계정명>/academic_regulations_ai/venv/bin/python -m uvicorn scripts.api_server:app --host 0.0.0.0 --port 8000
+   Restart=on-failure
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+
+3. 서비스를 등록하고 시작합니다.
+
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl enable gnu-regulation-search    # 서버 재부팅 시 자동 시작
+   sudo systemctl start gnu-regulation-search     # 지금 바로 시작
+   sudo systemctl status gnu-regulation-search    # 정상 동작 확인 ("active (running)"이면 성공)
+   ```
+
+4. 이후 코드가 바뀌면(예: `git pull`로 최신화한 뒤) 아래 명령으로 재시작합니다.
+
+   ```bash
+   sudo systemctl restart gnu-regulation-search
+   ```
+
+5. 로그(실행 화면 출력)를 확인하고 싶을 때:
+
+   ```bash
+   journalctl -u gnu-regulation-search -f     # 실시간 로그 (Ctrl+C로 종료)
+   ```
+
+### 9-7. 외부(학내망) 접속 허용 — 방화벽
+
+Windows Defender 방화벽 대신, 리눅스에서는 `ufw`(Ubuntu 기본 방화벽 도구)로
+8000번 포트를 열어줍니다.
+
+```bash
+sudo ufw allow 8000/tcp
+sudo ufw status              # "8000/tcp ALLOW" 가 보이면 정상
+```
+
+이후 다른 컴퓨터에서 `http://<서버의 IP 주소>:8000/` 으로 접속하면 됩니다.
+
+> ⚠️ 학교 네트워크가 각 서버에 공인(외부 인터넷) IP를 직접 할당하는 경우, 이
+> 서버가 교내망 밖(인터넷)에서도 접근 가능할 수 있습니다. 실제 운영으로 전환하기
+> 전에 정보전산처와 접근 범위(교내망 전용 여부, HTTPS 적용 여부 등)를 반드시
+> 협의하세요.
+
+### 9-8. (선택, 권장) 웹 표준 포트(80/443)로 서비스하려면 — Nginx 연동
+
+`http://서버주소:8000/` 대신 `http://서버주소/`(포트 번호 없이) 또는 `https://`로
+서비스하고 싶다면, Nginx를 앞단에 두는 방법이 일반적입니다. 이 설정은
+정보전산처에서 표준 절차대로 진행하는 것을 권장하며, 개략적인 흐름만 안내합니다.
+
+```
+사용자 브라우저 → (443/80 포트) Nginx → (내부적으로) 127.0.0.1:8000 FastAPI 서버
+```
+
+Nginx가 HTTPS 인증서 처리와 포트 연결을 대신해주고, FastAPI 서버(`uvicorn`)는
+계속 내부적으로 8000번 포트에서만 열어두면 됩니다 (`--host 0.0.0.0` 대신
+`--host 127.0.0.1`로 바꿔 외부에서 8000번 포트로 직접 접근은 막는 것이 더 안전합니다).
+
+### 9-9. 리눅스 배포 시 자주 발생하는 문제
+
+| 증상 | 원인·해결 |
+|---|---|
+| `ModuleNotFoundError` | 가상환경(`source venv/bin/activate`)을 안 켠 상태에서 실행한 경우입니다. |
+| 벡터DB 관련 오류 (`Collection does not exist` 등) | `GNU_VECTORDB` 환경변수를 안 정해줬거나, systemd 서비스와 터미널에서 서로 다른 경로를 보고 있는 경우입니다. 두 곳 모두 같은 경로로 통일하세요. |
+| `Address already in use` (포트 충돌) | 이미 8000번 포트로 다른 프로그램이 떠 있는 경우입니다. `sudo lsof -i :8000`으로 확인 후 종료하거나 다른 포트를 쓰세요. |
+| 외부에서 접속이 안 됨 | ① `--host 0.0.0.0`으로 켰는지, ② `ufw`에서 포트를 열었는지, ③ 학내망 자체의 상위 방화벽(정보전산처 관리)에서 막혀있지 않은지 순서대로 확인하세요. |
+| 권한 오류 (`Permission denied`) | `systemctl`/`ufw` 등 시스템 설정 명령은 `sudo`가 필요합니다. `venv` 폴더나 프로젝트 폴더의 소유자가 실행 계정과 다르면 `chown`으로 맞춰주세요. |
 
 문의: 정보전산처 (시스템 운영) / 총무과 055-772-0334 (대학 규정) / 산학연구과 055-772-0211 (산학협력단 규정)

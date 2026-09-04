@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-[T3] 하이브리드 검색 엔진 (의미 검색 + 키워드 검색)
+[T3] 하이브리드 검색 엔진 (의미 검색 + 키워드 검색) + [T12] 재순위화(reranker)
 - 의미 검색: T2에서 만든 ChromaDB 벡터DB (KR-SBERT 임베딩, 코사인 유사도)
 - 키워드 검색: 순수 파이썬 BM25 (bm25_lite.py)
-- 두 점수를 0~1로 정규화한 뒤 가중합하여 최종 순위를 매긴다.
+- 두 점수를 0~1로 정규화한 뒤 가중합하여 1차 후보 순위를 매긴다.
+- 재순위화: 1차 후보 상위 N개를 cross-encoder로 질문-조문을 직접 비교해 다시 정렬한다
+  (질문형 자연어 질의의 정확도를 높이기 위한 T12 개선. bge_m3_notes.md 참고)
 
 이 모듈은 FastAPI 서버(api_server.py)와 테스트 스크립트에서 공용으로 사용한다.
 """
@@ -20,6 +22,11 @@ DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 CHUNKS_PATH = os.path.join(DATA_DIR, "chunks.json")
 REGS_PATH = os.path.join(DATA_DIR, "regulations.json")
 DB_DIR = os.environ.get("GNU_VECTORDB", r"C:\gnu_vectordb")
+# T11에서 BGE-M3로 교체를 시도했으나, 실측 결과 완전히 무관한 질문("주식 시세 알려줘" 등)
+# 에도 코사인 유사도가 0.6~0.93으로 비정상적으로 높게 나와(관련 질의 0.88~0.99와 구간이
+# 겹침) 관련성 판단 기준(MIN_VEC_SIM) 자체가 무력화되는 부작용이 확인되어 롤백했다.
+# 대신 T12에서 "1차 검색은 그대로 KR-SBERT + 하이브리드로 하되, 상위 후보만 cross-encoder
+# 재순위화(rerank)로 다시 정렬"하는 방식으로 질문형 질의 정확도를 개선한다 (아래 참고).
 MODEL_NAME = "snunlp/KR-SBERT-V40K-klueNLI-augSTS"
 COLLECTION = "regulations"
 
@@ -33,6 +40,14 @@ CANDIDATE_POOL = 200
 # (완전 무관한 질의의 코사인 유사도는 실측 0.27~0.40 수준, 관련 질의는 0.46 이상으로 확인됨)
 MIN_VEC_SIM = 0.44
 MIN_BM25_SCORE = 0.0  # BM25는 실제 단어가 하나라도 일치하면 0보다 크므로 그대로 사용
+
+# ---------------------------------------------------------- T12: 재순위화(reranker)
+# cross-encoder는 "질문"과 "조문"을 한 쌍으로 같이 넣어 직접 관련도를 계산하므로
+# (임베딩을 각각 따로 벡터로 만들어 비교하는 방식보다) 질문형 질의에서 훨씬 정확하다.
+# 다만 느려서 전체 문서에는 못 쓰고, 1차 하이브리드 검색으로 추린 상위 후보에만 적용한다.
+RERANK_MODEL_NAME = os.environ.get("GNU_RERANK_MODEL", "BAAI/bge-reranker-v2-m3")
+RERANK_POOL = 20            # 1차 후보 중 재순위화 대상으로 삼을 상위 개수
+RERANK_ENABLED = os.environ.get("GNU_RERANK_ENABLED", "1") != "0"
 
 
 class SearchEngine:
@@ -68,6 +83,26 @@ class SearchEngine:
         self.collection = client.get_collection(COLLECTION)
         print(f"[검색엔진] 준비 완료: 청크 {len(self.chunks):,}개, "
               f"벡터DB 문서 {self.collection.count():,}개")
+
+        self._reranker = None
+        self._reranker_failed = False
+
+    def _lazy_reranker(self):
+        """[T12] 재순위화 모델을 최초 사용 시점에만 로딩한다 (필요 없으면 안 씀)."""
+        if not RERANK_ENABLED or self._reranker_failed:
+            return None
+        if self._reranker is None:
+            try:
+                from sentence_transformers import CrossEncoder
+                print(f"[검색엔진] 재순위화 모델 로딩 중... ({RERANK_MODEL_NAME})")
+                self._reranker = CrossEncoder(RERANK_MODEL_NAME, max_length=512)
+                print("[검색엔진] 재순위화 모델 로딩 완료")
+            except Exception as e:
+                print(f"[검색엔진] 경고: 재순위화 모델을 사용할 수 없습니다 ({e}). "
+                      f"재순위화 없이 하이브리드 검색 결과만 사용합니다.")
+                self._reranker_failed = True
+                return None
+        return self._reranker
 
     @classmethod
     def get(cls) -> "SearchEngine":
@@ -120,7 +155,12 @@ class SearchEngine:
         return (snippet[:width * 2] + "…") if len(snippet) >= width * 2 else snippet
 
     # ---------------------------------------------------------------- 검색
-    def search(self, query: str, top_k: int = 10, sources=None, categories=None):
+    def search(self, query: str, top_k: int = 10, sources=None, categories=None, rerank: bool = False):
+        """rerank=True면 상위 후보를 cross-encoder로 재순위화한다 (정확하지만 10초 안팎
+        추가로 걸림). 즉시 응답이 필요한 일반 검색(/api/search)은 기본값 False로 빠르게
+        응답하고, 어차피 LLM 답변 생성에 수십 초가 걸리는 AI 질문하기(RAG)만 True로 호출해
+        검색 정확도를 높인다 (rag_engine.py의 retrieve() 참고).
+        """
         t0 = time.time()
         where = self._build_where(sources, categories)
 
@@ -165,7 +205,27 @@ class SearchEngine:
                     + BM25_WEIGHT * bm25_norm.get(cid, 0.0))
             combined.append((cid, score))
         combined.sort(key=lambda x: -x[1])
-        top = combined[:top_k]
+
+        # 5) [T12] 재순위화: 1차 후보 상위 RERANK_POOL개만 cross-encoder로 "순서만" 다시
+        #    매긴다. 중요: 여기서 나오는 cross-encoder 점수는 하이브리드 점수와 완전히
+        #    다른 척도라서, 그대로 최종 score로 덮어쓰면 MIN_TOP_SCORE_FOR_ANSWER 같은
+        #    기존 관련성 임계값이 전혀 다른 기준에 적용되어 무의미해진다(T11과 같은 실수를
+        #    반복하게 됨). 그래서 cross-encoder는 순위(정렬 순서)를 정하는 데만 쓰고,
+        #    화면에 보여주고 임계값 판단에 쓰이는 score는 원래 하이브리드 점수를 그대로
+        #    유지한다 — "관련 있다고 판단된 후보들 사이의 순서"만 더 정확하게 다듬는 것.
+        reranker = self._lazy_reranker() if rerank else None
+        rerank_candidates = combined[:max(RERANK_POOL, top_k)]
+        if reranker and rerank_candidates:
+            pairs = [(query, self.chunk_by_id[cid]["text"]) for cid, _ in rerank_candidates]
+            try:
+                raw_scores = reranker.predict(pairs)
+                order = sorted(zip(rerank_candidates, raw_scores), key=lambda x: -x[1])
+                top = [item for item, _ in order][:top_k]  # (cid, 원래 하이브리드 점수) 유지
+            except Exception as e:
+                print(f"[검색엔진] 경고: 재순위화 실행 실패({e}). 하이브리드 순위를 그대로 사용합니다.")
+                top = combined[:top_k]
+        else:
+            top = combined[:top_k]
 
         results = []
         for cid, score in top:

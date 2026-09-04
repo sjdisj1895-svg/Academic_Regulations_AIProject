@@ -17,6 +17,9 @@ t5_server.log
 t5_server.err
 *.log
 
+# RAG 질문·답변 로그 (운영 중 자동 생성, 저장소에는 불필요)
+data/rag_logs/
+
 # 오피스 임시 잠금 파일
 ~$*.pptx
 ~$*.docx

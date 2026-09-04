@@ -6,6 +6,8 @@
 - 임베딩 모델: snunlp/KR-SBERT-V40K-klueNLI-augSTS (Hugging Face 공개 모델)
   · 서울대 NLP 연구실이 공개한 한국어 특화 SBERT — 한국어 문장 의미 비교에 강함
   · 무료이며 최초 1회 다운로드 후 로컬에서 오프라인 실행 가능
+  · (T11에서 BAAI/bge-m3로 교체 시도했으나 무관한 질의까지 유사도가 비정상적으로
+    높게 나오는 부작용이 확인되어 롤백. T12에서 재순위화(reranker)로 대체 개선)
 - 벡터DB: ChromaDB (오픈소스, 무료)
   · 서버 설치 없이 파일 폴더(data/vectordb)로 저장되는 임베디드 방식
   · 메타데이터 필터(출처/카테고리)와 코사인 유사도 검색 기본 지원
@@ -72,8 +74,11 @@ def main():
     t0 = time.time()
     for i in range(0, len(targets), BATCH):
         batch = targets[i:i + BATCH]
-        # 검색 품질을 위해 '규정명 + 조항'을 본문 앞에 붙여 임베딩
-        texts = [f"{c['name']} {c['article']} {c.get('article_title','')}\n{c['text']}"
+        # 검색 품질을 위해 '규정명 + 장 제목 + 조항'을 본문 앞에 붙여 임베딩.
+        # [T12] 장(章) 제목을 추가하면, 조문 하나만으로는 주제가 드러나지 않는 짧은
+        # 위임·절차 조항도 "이 조문이 어떤 장(예: 휴학/복학)에 속하는지" 문맥이 임베딩에
+        # 함께 담겨 질문형 자연어 질의의 검색 정확도가 개선된다 (chunk_rules.py에서 추출).
+        texts = [f"{c['name']} {c.get('chapter','')} {c['article']} {c.get('article_title','')}\n{c['text']}"
                  for c in batch]
         embs = model.encode(texts, batch_size=32, show_progress_bar=False,
                             normalize_embeddings=True)

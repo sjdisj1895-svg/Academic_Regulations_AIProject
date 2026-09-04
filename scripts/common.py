@@ -9,6 +9,7 @@ import re
 import time
 import urllib.parse
 import urllib.request
+from typing import Optional
 
 # 사이트가 차단하지 않도록 일반 브라우저처럼 보이는 User-Agent 사용
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
@@ -17,7 +18,7 @@ USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 REQUEST_DELAY = 0.3
 
 
-def fetch(url: str, params: dict | None = None, referer: str | None = None,
+def fetch(url: str, params: Optional[dict] = None, referer: Optional[str] = None,
           decode: bool = True, retries: int = 3):
     """URL 내용을 가져온다. 실패하면 retries번까지 재시도한다."""
     if params:

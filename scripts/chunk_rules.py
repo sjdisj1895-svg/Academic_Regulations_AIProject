@@ -4,6 +4,10 @@
 - data/regulations.json 의 각 규정 텍스트를 읽어
   '제0조(제목)' 단위로 자르고, 조문이 길면 '제0항(①②③...)' 단위로 더 자릅니다.
 - 부칙·별표처럼 조문 구조가 아닌 부분도 별도 청크로 보존합니다.
+- [T12] 각 조문이 속한 '제0장(장 제목)'을 함께 추출해 "chapter" 메타데이터로 붙입니다.
+  (예: "제7장 휴학, 복학, 재입학, 편입학, 유급, 퇴학 및 제적"). 짧은 조문 하나만 봐서는
+  주제를 알기 어려운 경우(예: 위임 조항)에도, 소속된 장 제목이 임베딩에 함께 들어가면
+  검색 엔진이 문맥을 더 잘 파악해 질문형 질의의 정확도가 올라간다 (build_vectordb.py에서 사용).
 - 결과: data/chunks.json  (청크 목록 + 메타데이터)
 
 사용법:
@@ -28,6 +32,29 @@ HANG_MARKS = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳"
 JO_PAT = re.compile(r"(?m)^(제\s*\d+\s*조(?:의\s*\d+)?)\s*(\([^)]{1,60}\))?")
 # 부칙/별표/별지 시작 패턴
 BUCHIK_PAT = re.compile(r"(?m)^(부\s*칙|별\s*표|별\s*지|\[별표|\〔별표|\[별지)")
+# [T12] 장(章) 제목 시작 패턴: 줄 시작의 '제7장 휴학, 복학...' (한 줄 전체를 장 제목으로 사용)
+CHAPTER_PAT = re.compile(r"(?m)^(제\s*\d+\s*장[^\n]{0,60})")
+
+
+def _build_chapter_lookup(text: str):
+    """본문에서 장(章) 제목들의 위치를 찾아, 문서 내 임의 위치가 어느 장에 속하는지
+    알려주는 조회 함수를 만든다. (장 구분이 없는 규정은 항상 빈 문자열 반환)
+    """
+    marks = [(m.start(), re.sub(r"\s+", " ", m.group(1)).strip())
+             for m in CHAPTER_PAT.finditer(text)]
+    if not marks:
+        return lambda pos: ""
+
+    def lookup(pos: int) -> str:
+        current = ""
+        for start, title in marks:
+            if start <= pos:
+                current = title
+            else:
+                break
+        return current
+
+    return lookup
 
 
 def read_body(text_file: str) -> str:
@@ -83,6 +110,7 @@ def chunk_one(reg: dict):
 
     # 2) 본칙: 조 단위 분할
     jo_matches = list(JO_PAT.finditer(main_part))
+    chapter_of = _build_chapter_lookup(main_part)  # [T12] 위치 → 소속 장(章) 제목
     if jo_matches:
         # 첫 조문 앞의 머리글(제정·시행 정보)은 첫 청크로
         head = main_part[:jo_matches[0].start()].strip()
@@ -93,13 +121,14 @@ def chunk_one(reg: dict):
             jo_no = re.sub(r"\s+", "", m.group(1))          # 제12조
             jo_title = (m.group(2) or "").strip("() ")      # 목적
             jo_text = main_part[m.start():end].strip()
+            chapter = chapter_of(m.start())                 # [T12] 이 조문이 속한 장 제목
             if len(jo_text) <= MAX_CHARS:
                 chunks.append({"article": jo_no, "article_title": jo_title,
-                               "clause": "", "text": jo_text})
+                               "clause": "", "text": jo_text, "chapter": chapter})
             else:
                 for hang_no, piece in split_by_hang(jo_text):
                     chunks.append({"article": jo_no, "article_title": jo_title,
-                                   "clause": hang_no, "text": piece})
+                                   "clause": hang_no, "text": piece, "chapter": chapter})
     elif main_part.strip():
         # 조문 구조가 없는 규정(윤리강령 등): 문단 묶음으로 분할
         for _, piece in split_by_hang(main_part.strip()):
@@ -130,6 +159,7 @@ def chunk_one(reg: dict):
             "name": reg["name"],                  # 규정명
             "article": c.get("article", ""),      # 제0조 / 부칙 / 별표
             "article_title": c.get("article_title", ""),
+            "chapter": c.get("chapter", ""),       # [T12] 소속 장(章) 제목 (검색 문맥 보강용)
             "clause": c.get("clause", ""),        # 제0항
             "department": reg["department"],
             "contact": reg["contact"],
