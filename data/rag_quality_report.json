@@ -6,11 +6,11 @@
       "success": true,
       "found": true,
       "used_llm": true,
-      "elapsed": 86.05,
+      "elapsed": 60.0,
       "hallucinated_numbers": [],
       "guard_triggered": false,
       "note": "",
-      "answer_preview": "연구비 감사 관련 행정사무는 산학협력단 산학감사실로 지원됩니다.  참고자료에서 \"제16조(행정사무의 지원)\" 부분에 해당 내용이 있습니다:  \""
+      "answer_preview": "연구비 감사 관련 행정사무는 경상국립대학교 산학협력단의 산학감사실이 지원해あります.  근거: [경상국립대학교 산학협력단 감사 지침] 제16조(행"
     },
     {
       "question": "휴학 신청은 언제까지 해야 해?",
@@ -18,13 +18,14 @@
       "success": true,
       "found": true,
       "used_llm": true,
-      "elapsed": 73.56,
+      "elapsed": 64.22,
       "hallucinated_numbers": [
-        "5"
+        "18",
+        "9"
       ],
       "guard_triggered": true,
-      "note": "컨텍스트에 없는 숫자 발견: ['5']",
-      "answer_preview": "휴학 신청은 매 학기 수업일수의 2분의 1이 경과하기 이전에 이루어져야 합니다. 따라서, 예를 들어, 1학기의 수업일수가 10주라면, 휴학 신청"
+      "note": "컨텍스트에 없는 숫자 발견: ['18', '9']",
+      "answer_preview": "휴학 신청은 매 학기 수업일수의 2분의 1이 경과하기 이전에 이루어져야 합니다. 따라서, 예를 들어, 1학기의 수업 일수가 18주라면, 휴학 신"
     },
     {
       "question": "장학금은 어떻게 신청해?",
@@ -32,14 +33,14 @@
       "success": true,
       "found": true,
       "used_llm": true,
-      "elapsed": 66.39,
+      "elapsed": 54.29,
       "hallucinated_numbers": [
-        "3",
-        "4"
+        "2",
+        "3"
       ],
       "guard_triggered": true,
-      "note": "컨텍스트에 없는 숫자 발견: ['3', '4']",
-      "answer_preview": "### 장학금 신청 방법  #### [경상국립대학교 대학원 학사운영규정] **제31조(장학생 선발 등)**   1. **장학생 선발**: 일반대"
+      "note": "컨텍스트에 없는 숫자 발견: ['2', '3']",
+      "answer_preview": "### 장학금 신청 방법  #### [경상국립대학교 행정대학원 학사운영규정] 1. **장학생 선발**: 학과주임의 추천을 받고, 대학원장이 결정"
     },
     {
       "question": "졸업 요건이 뭐야?",
@@ -47,56 +48,56 @@
       "success": true,
       "found": true,
       "used_llm": true,
-      "elapsed": 72.54,
+      "elapsed": 71.18,
       "hallucinated_numbers": [],
       "guard_triggered": false,
       "note": "",
-      "answer_preview": "### 졸업 요건  #### 제2조(졸업논문 등) - **학부(과) 또는 전공별 필요에 따라** 졸업논문, 실험실습보고서, 실기발표, 졸업종합시"
+      "answer_preview": "### 졸업 요건  #### 경상국립대학교 학사관리 규정 **제135조(졸업)**   - **졸업에 필요한 학점**: 학칙 제83조에 따르며, "
     },
     {
       "question": "연구비 지원 한도가 얼마야?",
       "expect_type": "refuse_soft",
-      "success": false,
+      "success": true,
       "found": true,
       "used_llm": true,
-      "elapsed": 87.35,
+      "elapsed": 48.08,
       "hallucinated_numbers": [],
       "guard_triggered": false,
-      "note": "거절해야 하는데 답을 지어냄(환각 의심)",
-      "answer_preview": "### 연구비 지원 한도  #### [경상국립대학교 간접비 관리·운영 지침] 제4조 제4항(회계․관리 운영) - **최근 2년간 연구비(1월~1"
+      "note": "",
+      "answer_preview": "해당 내용은 규정에서 찾을 수 없습니다.  위 참고자료에서는 연구비 지원의 구분과 지원 기간 등에 대한 정보가 제공되어 있습니다. 그러나 연구비"
     },
     {
       "question": "오늘 서울 날씨가 어때?",
       "expect_type": "refuse_hard",
-      "success": false,
-      "found": true,
-      "used_llm": true,
-      "elapsed": 39.19,
+      "success": true,
+      "found": false,
+      "used_llm": false,
+      "elapsed": 1.88,
       "hallucinated_numbers": [],
       "guard_triggered": false,
-      "note": "규정과 무관한데 검색결과/LLM이 응답함",
-      "answer_preview": "죄송합니다, 제가 제공한 정보에서는 오늘 서울의 날씨에 대한 정보를 얻는 방법을 알려드리지 못했습니다. 현재의 서울 날씨는 직접적인 정보를 제공"
+      "note": "",
+      "answer_preview": "해당 내용은 규정에서 찾을 수 없습니다."
     },
     {
       "question": "다음주 로또 번호 알려줘",
       "expect_type": "refuse_hard",
-      "success": false,
-      "found": true,
-      "used_llm": true,
-      "elapsed": 102.79,
+      "success": true,
+      "found": false,
+      "used_llm": false,
+      "elapsed": 10.71,
       "hallucinated_numbers": [],
       "guard_triggered": false,
-      "note": "규정과 무관한데 검색결과/LLM이 응답함",
-      "answer_preview": "죄송합니다, 제가 로또 번호를 알 수 없습니다. 로또 번호는 추첨 결과에 따라 결정되므로, 현재 시간이나 특정 날짜에 대한 정보를 바탕으로 로또"
+      "note": "",
+      "answer_preview": "해당 내용은 규정에서 찾을 수 없습니다."
     }
   ],
   "rag_summary": {
     "total_n": 7,
-    "success_n": 4,
-    "success_rate": 57.1,
+    "success_n": 7,
+    "success_rate": 100.0,
     "hallucination_n": 2,
     "guard_triggered_n": 2,
-    "avg_time": 75.41
+    "avg_time": 44.34
   },
   "guardrail_unit_test": {
     "triggered": true,
@@ -105,6 +106,6 @@
   },
   "search_quality_regression_check": {
     "success_rate": 100.0,
-    "avg_time": 0.048970603942871095
+    "avg_time": 0.03683001200358073
   }
 }

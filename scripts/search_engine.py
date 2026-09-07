@@ -2,6 +2,8 @@
 """
 [T3] 하이브리드 검색 엔진 (의미 검색 + 키워드 검색) + [T12] 재순위화(reranker)
 - 의미 검색: T2에서 만든 ChromaDB 벡터DB (KR-SBERT 임베딩, 코사인 유사도)
+  (T11 BGE-M3, T13 multilingual-e5-large 교체를 각각 시도했으나 둘 다 무관한 질의의
+   유사도가 비정상적으로 높게 나오는 문제로 롤백 — 아래 MODEL_NAME 주석 참고)
 - 키워드 검색: 순수 파이썬 BM25 (bm25_lite.py)
 - 두 점수를 0~1로 정규화한 뒤 가중합하여 1차 후보 순위를 매긴다.
 - 재순위화: 1차 후보 상위 N개를 cross-encoder로 질문-조문을 직접 비교해 다시 정렬한다
@@ -38,11 +40,12 @@ def _patch_sqlite3_for_chromadb():
         sys.modules["sqlite3"] = pysqlite3
     except ImportError:
         pass
-# T11에서 BGE-M3로 교체를 시도했으나, 실측 결과 완전히 무관한 질문("주식 시세 알려줘" 등)
-# 에도 코사인 유사도가 0.6~0.93으로 비정상적으로 높게 나와(관련 질의 0.88~0.99와 구간이
-# 겹침) 관련성 판단 기준(MIN_VEC_SIM) 자체가 무력화되는 부작용이 확인되어 롤백했다.
-# 대신 T12에서 "1차 검색은 그대로 KR-SBERT + 하이브리드로 하되, 상위 후보만 cross-encoder
-# 재순위화(rerank)로 다시 정렬"하는 방식으로 질문형 질의 정확도를 개선한다 (아래 참고).
+# T11에서 BGE-M3로, T13에서 multilingual-e5-large로 교체를 시도했으나 둘 다 실측 결과
+# 완전히 무관한 질문에도 코사인 유사도가 관련 질의와 겹칠 만큼 높게 나오는 문제가 있었고
+# (T13에서는 특히 "연구비 지원 한도가 얼마야?" 같은 애매한 질문에 전혀 다른 주제인
+# "우수연구센터 지정 기준" 조항을 근거로 끌어와 오답을 만드는 사례까지 실측 확인되어)
+# 두 번 다 롤백했다. KR-SBERT가 이 좁은 도메인(대학 규정)에서는 오히려 무관한 문장을
+# 확실히 낮게 매겨 더 안전하다고 최종 판단. 정확도 개선은 T12의 재순위화(reranker)로 대응.
 MODEL_NAME = "snunlp/KR-SBERT-V40K-klueNLI-augSTS"
 COLLECTION = "regulations"
 
@@ -236,8 +239,25 @@ class SearchEngine:
             pairs = [(query, self.chunk_by_id[cid]["text"]) for cid, _ in rerank_candidates]
             try:
                 raw_scores = reranker.predict(pairs)
-                order = sorted(zip(rerank_candidates, raw_scores), key=lambda x: -x[1])
-                top = [item for item, _ in order][:top_k]  # (cid, 원래 하이브리드 점수) 유지
+                # [T14] 순수 cross-encoder 순서를 그대로 쓰면, 하이브리드 점수가 확연히
+                # 낮은(주제가 다른) 후보가 "숫자가 구체적으로 들어있다"는 이유만으로
+                # 최상위 후보보다 앞으로 튀어오르는 사례가 발견됐다(예: "연구비 지원
+                # 한도" 질문에서 무관한 "간접비 관리·운영 지침"이 1위로 승격). 단순 가중
+                # 평균은 cross-encoder가 자신 있게 틀린 답을 낼 때 여전히 뚫린다는 것을
+                # 확인했다. 그래서 "하이브리드 최상위 점수 대비 크게 뒤처지는(GATE_MARGIN
+                # 이상 차이나는) 후보는애초에 승격 대상에서 제외"하는 게이트를 둔다 —
+                # cross-encoder는 하이브리드 점수가 비슷한(=주제 적합성이 비슷한) 후보들
+                # 사이에서만 순서를 다듬을 수 있고, 명백히 점수가 낮은 후보를 1등으로
+                # 끌어올릴 수는 없다.
+                RERANK_GATE_MARGIN = 0.05
+                top_hybrid = rerank_candidates[0][1]
+                ce_by_cid = dict(zip([cid for cid, _ in rerank_candidates], raw_scores))
+                eligible = [(cid, hybrid) for cid, hybrid in rerank_candidates
+                            if hybrid >= top_hybrid - RERANK_GATE_MARGIN]
+                rest = [(cid, hybrid) for cid, hybrid in rerank_candidates
+                        if hybrid < top_hybrid - RERANK_GATE_MARGIN]
+                eligible.sort(key=lambda x: -ce_by_cid.get(x[0], 0.0))
+                top = (eligible + rest)[:top_k]  # (cid, 원래 하이브리드 점수) 유지
             except Exception as e:
                 print(f"[검색엔진] 경고: 재순위화 실행 실패({e}). 하이브리드 순위를 그대로 사용합니다.")
                 top = combined[:top_k]
