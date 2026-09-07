@@ -21,7 +21,23 @@ from bm25_lite import BM25Lite
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
 CHUNKS_PATH = os.path.join(DATA_DIR, "chunks.json")
 REGS_PATH = os.path.join(DATA_DIR, "regulations.json")
-DB_DIR = os.environ.get("GNU_VECTORDB", r"C:\gnu_vectordb")
+# GNU_VECTORDB를 안 정해주면 OS에 맞는 기본 경로로 떨어진다 (환경변수를 깜빡해도
+# 리눅스에서 Windows 전용 경로(C:\...)로 잘못 떨어지는 것을 방지)
+_DEFAULT_DB_DIR = r"C:\gnu_vectordb" if os.name == "nt" else "/var/lib/gnu_vectordb"
+DB_DIR = os.environ.get("GNU_VECTORDB", _DEFAULT_DB_DIR)
+
+
+def _patch_sqlite3_for_chromadb():
+    """리눅스 배포판(특히 CentOS/RHEL 계열)의 시스템 sqlite3가 오래된 경우
+    (ChromaDB는 3.35.0 이상 필요), `pip install pysqlite3-binary`로 설치한 최신
+    버전으로 표준 sqlite3 모듈을 바꿔치기한다. (ChromaDB 공식 문서 권장 우회법)
+    pysqlite3-binary가 없거나 이미 sqlite3가 충분히 최신이면 조용히 넘어간다.
+    """
+    try:
+        import pysqlite3
+        sys.modules["sqlite3"] = pysqlite3
+    except ImportError:
+        pass
 # T11에서 BGE-M3로 교체를 시도했으나, 실측 결과 완전히 무관한 질문("주식 시세 알려줘" 등)
 # 에도 코사인 유사도가 0.6~0.93으로 비정상적으로 높게 나와(관련 질의 0.88~0.99와 구간이
 # 겹침) 관련성 판단 기준(MIN_VEC_SIM) 자체가 무력화되는 부작용이 확인되어 롤백했다.
@@ -78,6 +94,7 @@ class SearchEngine:
         self.model = SentenceTransformer(MODEL_NAME)
 
         print(f"[검색엔진] 벡터DB 연결 중... ({DB_DIR})")
+        _patch_sqlite3_for_chromadb()
         import chromadb
         client = chromadb.PersistentClient(path=DB_DIR)
         self.collection = client.get_collection(COLLECTION)

@@ -23,15 +23,30 @@ import time
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
 CHUNKS = os.path.join(DATA_DIR, "chunks.json")
-# ※ ChromaDB는 한글이 포함된 경로에서 인덱스 로딩 오류가 발생하므로
-#    영문 경로(C:\gnu_vectordb)에 저장한다. (환경변수 GNU_VECTORDB로 변경 가능)
-DB_DIR = os.environ.get("GNU_VECTORDB", r"C:\gnu_vectordb")
+# ※ ChromaDB는 한글이 포함된 경로에서 인덱스 로딩 오류가 발생하므로 영문 경로에 저장한다.
+#    (환경변수 GNU_VECTORDB로 변경 가능. 안 정해주면 OS에 맞는 기본 경로로 떨어진다 —
+#     리눅스에서 Windows 전용 경로(C:\...)로 잘못 떨어지는 것을 방지)
+_DEFAULT_DB_DIR = r"C:\gnu_vectordb" if os.name == "nt" else "/var/lib/gnu_vectordb"
+DB_DIR = os.environ.get("GNU_VECTORDB", _DEFAULT_DB_DIR)
 MODEL_NAME = "snunlp/KR-SBERT-V40K-klueNLI-augSTS"
 COLLECTION = "regulations"
 BATCH = 128
 
 
+def _patch_sqlite3_for_chromadb():
+    """리눅스 배포판(특히 CentOS/RHEL 계열)의 시스템 sqlite3가 오래된 경우
+    (ChromaDB는 3.35.0 이상 필요), `pip install pysqlite3-binary`로 설치한 최신
+    버전으로 표준 sqlite3 모듈을 바꿔치기한다. (ChromaDB 공식 문서 권장 우회법)
+    """
+    try:
+        import pysqlite3
+        sys.modules["sqlite3"] = pysqlite3
+    except ImportError:
+        pass
+
+
 def get_collection():
+    _patch_sqlite3_for_chromadb()
     import chromadb
     client = chromadb.PersistentClient(path=DB_DIR)
     return client, client.get_or_create_collection(
