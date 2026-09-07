@@ -267,7 +267,9 @@ class SearchEngine:
         reg = self.reg_by_id.get(reg_id)
         if not reg:
             return None
-        path = os.path.join(DATA_DIR, reg["text_file"])
+        # text_file 값이 Windows에서 저장되어 "\\" 구분자를 포함할 수 있으므로
+        # "/"로 정규화한 뒤 조립한다 (리눅스에서 "\\"는 경로 구분자로 인식되지 않음).
+        path = os.path.join(DATA_DIR, *reg["text_file"].replace("\\", "/").split("/"))
         if not os.path.exists(path):
             return None
         with open(path, encoding="utf-8") as f:

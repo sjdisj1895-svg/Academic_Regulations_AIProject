@@ -236,7 +236,9 @@ def main():
                                              DEPT_CONTACTS["산학연구과"]),
                 "rule_no": "", "date": "", "source_url": post_url,
                 "law_url": "",
-                "text_file": os.path.relpath(path, DATA_DIR),
+                # "/"로 저장 (리눅스 호환) — os.path.relpath가 Windows에서 "\\"를 반환하면
+                # 리눅스에서 경로 구분자로 인식되지 않아 파일을 못 찾는 문제가 생긴다.
+                "text_file": os.path.relpath(path, DATA_DIR).replace("\\", "/"),
             })
             print(f"  [완료] {rule['no']}. {rule['name']} ({len(rule['body']):,}자)")
 

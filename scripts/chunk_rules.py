@@ -58,8 +58,14 @@ def _build_chapter_lookup(text: str):
 
 
 def read_body(text_file: str) -> str:
-    """저장된 규정 텍스트에서 머리말(======= 위)을 떼고 본문만 반환."""
-    path = os.path.join(DATA_DIR, text_file)
+    """저장된 규정 텍스트에서 머리말(======= 위)을 떼고 본문만 반환.
+
+    regulations.json에 저장된 text_file 값은 Windows에서 수집한 경우 "\\"(역슬래시)로
+    구분되어 있을 수 있다. 리눅스에서는 "\\"가 경로 구분자로 해석되지 않고 파일명의
+    일부 문자로 취급되어 파일을 못 찾는 문제(No such file or directory)가 생기므로,
+    "/"로 정규화한 뒤 os.path.join으로 다시 조립한다 (Windows에서도 "/"는 정상 동작).
+    """
+    path = os.path.join(DATA_DIR, *text_file.replace("\\", "/").split("/"))
     with open(path, encoding="utf-8") as f:
         content = f.read()
     sep = content.find("=" * 40)

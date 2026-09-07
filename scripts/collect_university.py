@@ -187,7 +187,10 @@ def collect_hakchik(done: dict, errors: list):
             "date": "", "source_url": HAKCHIK_URL,
             "law_url": f"https://www.law.go.kr/LSW/schlPubRulInfoP.do?schlPubRulSeq={seq}",
         }
-        meta["text_file"] = os.path.relpath(save_text("학칙", name, meta, body), DATA_DIR)
+        # "/"로 저장해 리눅스에서도 그대로 열 수 있게 한다 (os.path.relpath는
+        # Windows에서 "\\" 구분자를 반환하는데, 리눅스는 이를 경로 구분자로 인식하지 않음)
+        meta["text_file"] = os.path.relpath(
+            save_text("학칙", name, meta, body), DATA_DIR).replace("\\", "/")
         append_progress(meta)
         print(f"  [완료] 학칙: {name} ({len(body):,}자)")
     except Exception as e:
@@ -232,7 +235,7 @@ def collect_board(category: str, cfg: dict, done: dict, errors: list):
                     "law_url": f"https://www.law.go.kr/LSW/schlPubRulInfoP.do?schlPubRulSeq={seq}",
                 }
                 meta["text_file"] = os.path.relpath(
-                    save_text(category, row["name"], meta, body), DATA_DIR)
+                    save_text(category, row["name"], meta, body), DATA_DIR).replace("\\", "/")
                 append_progress(meta)
                 done[key] = meta
                 print(f"  [완료] {category} {count}/{total}: {row['name']}")
