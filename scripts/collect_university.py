@@ -138,7 +138,9 @@ def law_fulltext(seq: str) -> Tuple[str, Optional[str]]:
 
 
 def find_law_seq(html: str) -> Optional[str]:
-    m = re.search(r"schlPubRulInfoP\.do\?schlPubRulSeq=(\d+)", html)
+    # 일부 게시글은 대학 홈페이지 원본에 "schlPubRulSeq= 2200000150709"처럼
+    # 등호(=) 뒤에 공백이 섞여 있어(원문 오타), \s*로 공백을 허용해 매칭한다.
+    m = re.search(r"schlPubRulInfoP\.do\?schlPubRulSeq=\s*(\d+)", html)
     return m.group(1) if m else None
 
 
