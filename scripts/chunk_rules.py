@@ -237,6 +237,18 @@ def main():
     with open(os.path.join(DATA_DIR, "chunk_report.json"), "w", encoding="utf-8") as f:
         json.dump({"total_chunks": len(all_chunks), "per_regulation": per_reg,
                    "failed": failed}, f, ensure_ascii=False, indent=1)
+    # [T17] 데이터 기준일: 웹 화면 푸터에 "데이터 기준일"로 표시된다. 파일 수정시각(mtime)은
+    # 서버에 git clone 하는 순간의 시각으로 바뀌어 신뢰할 수 없으므로, 청킹을 실행한 날짜를
+    # 데이터 파일로 함께 저장해 git으로 배포되게 한다.
+    import datetime
+    with open(os.path.join(DATA_DIR, "dataset_meta.json"), "w", encoding="utf-8") as f:
+        json.dump({
+            "data_date": datetime.date.today().isoformat(),
+            "total_regulations": len({c["reg_id"] for c in all_chunks}),
+            "total_chunks": len(all_chunks),
+            "sources": ["국가법령정보센터(law.go.kr) 학교규정", "경상국립대학교 홈페이지 학칙/규정/지침",
+                        "경상국립대학교 산학협력단 규정집"],
+        }, f, ensure_ascii=False, indent=1)
     print(f"[저장] {OUT}")
 
 

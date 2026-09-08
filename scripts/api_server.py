@@ -10,6 +10,7 @@ API 문서(Swagger UI): http://127.0.0.1:8000/docs
 """
 import json
 import os
+import re
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
@@ -23,6 +24,7 @@ from pydantic import BaseModel
 
 # T4: 웹 화면(web 폴더)을 API 서버가 함께 서빙한다.
 WEB_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web")
+DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from search_engine import SearchEngine
@@ -139,12 +141,47 @@ def api_info():
     }
 
 
+_UNIV_CATEGORY_ORDER = {"학칙": 0, "규정": 1, "지침": 2}
+
+
+def _category_sort_key(cat: str):
+    """대학은 학칙→규정→지침, 산학협력단은 '제N편' 번호순으로 정렬한다."""
+    if cat in _UNIV_CATEGORY_ORDER:
+        return (0, _UNIV_CATEGORY_ORDER[cat], cat)
+    m = re.match(r"제\s*(\d+)\s*편", cat)
+    if m:
+        return (1, int(m.group(1)), cat)
+    return (2, 0, cat)
+
+
 @app.get("/api/filters", tags=["검색"], summary="사용 가능한 필터 목록(출처/카테고리) 조회")
 def get_filters():
+    """[T17] 카테고리는 출처별로 체계가 다르다(대학: 학칙/규정/지침, 산학협력단: 제1편~제7편).
+    한 줄에 섞어 보여주면 사용자가 구분하기 어려우므로 출처별로 나눠서 함께 내려준다.
+    (`categories`는 기존 호환용으로 그대로 유지) 데이터 기준일도 함께 내려 푸터에 표시한다."""
     engine = get_engine()
     sources = sorted({c["source"] for c in engine.chunks})
-    categories = sorted({c["category"] for c in engine.chunks})
-    return {"sources": sources, "categories": categories}
+    categories = sorted({c["category"] for c in engine.chunks}, key=_category_sort_key)
+    by_source = {}
+    for c in engine.chunks:
+        by_source.setdefault(c["source"], set()).add(c["category"])
+    categories_by_source = {s: sorted(v, key=_category_sort_key) for s, v in by_source.items()}
+
+    meta = {}
+    meta_path = os.path.join(DATA_DIR, "dataset_meta.json")
+    if os.path.exists(meta_path):
+        try:
+            with open(meta_path, encoding="utf-8") as f:
+                meta = json.load(f)
+        except Exception:
+            meta = {}
+    return {
+        "sources": sources,
+        "categories": categories,
+        "categories_by_source": categories_by_source,
+        "data_date": meta.get("data_date", ""),
+        "total_regulations": meta.get("total_regulations", len({c["reg_id"] for c in engine.chunks})),
+    }
 
 
 @app.get("/api/search", response_model=SearchResponse, tags=["검색"],
