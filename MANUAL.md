@@ -180,6 +180,25 @@ python scripts/export_contacts.py
 | `GNU_RAG_API_KEY` | 외부 API 키 (이 값이 설정되면 로컬 AI 대신 자동으로 외부 API를 사용합니다) |
 | `GNU_RAG_API_BASE` | API 주소 (기본값: `https://api.openai.com/v1`) |
 | `GNU_RAG_API_MODEL` | 사용할 모델명 (기본값: `gpt-4o-mini`) |
+| `GNU_RAG_REWRITE` | (선택) 외부 API 사용 시 질문을 규정 문체 검색어로 먼저 바꿔 검색하는 기능. 기본 켜짐, `0`이면 끔 |
+
+**현재 운영 설정 (FactChat/Timely GPT 브리지 → Claude Haiku 4.5)** — 학교에서 제공하는
+FactChat API 키를 그대로 쓸 수 있습니다. 모델명은 반드시 `공급사/모델` 형식이어야 하며,
+아래 값이 실측으로 확인된 조합입니다 (`anthropic/claude-sonnet-5`도 동작하지만 규정
+안내처럼 짧고 사실 기반인 답변에는 더 빠르고 저렴한 Haiku가 적합합니다).
+
+```
+GNU_RAG_API_KEY=<FactChat에서 발급받은 키>
+GNU_RAG_API_BASE=https://hello.timelygpt.co.kr/api/v2/chat/bridge/openai
+GNU_RAG_API_MODEL=anthropic/claude-haiku-4.5
+```
+
+- `pip install openai` 패키지가 필요합니다 (없으면 로컬 AI로 자동 대체됨).
+- 모델명이 틀리면 답변 대신 `[생성 불가: Error code: 400 ... is not a valid model ID]`가
+  표시됩니다. 지원 모델 목록은 FactChat 문서(OPENAI_SDK_GUIDE.md)를 확인하세요.
+- 정상 전환 여부는 서버 시작 로그의 `[RAG] 외부 API 백엔드 사용: ... (anthropic/claude-haiku-4.5)`
+  문구로 확인합니다. 리눅스 systemd로 운영 중이면 9-6의 서비스 파일 `Environment=` 항목에
+  넣고 `daemon-reload` 후 재시작해야 합니다 (`.bashrc`의 `export`는 systemd가 읽지 않음).
 
 > 🔐 API 키는 비밀번호와 같으므로 문서나 채팅으로 공유하지 말고, 서버 컴퓨터의 환경변수로만
 > 등록하세요. 외부 API를 쓰면 질문 내용이 외부(해당 AI 회사)로 전송되므로, 민감한 내용이
@@ -392,10 +411,9 @@ Windows에서는 검은 명령 프롬프트 창을 계속 열어둬야 서버가
 
    [Service]
    Type=simple
-   User=<서버에서 쓸 계정명>
-   WorkingDirectory=/home/<계정명>/academic_regulations_ai
+   WorkingDirectory=/app_project/academic_regulations_ai
    Environment=GNU_VECTORDB=/var/lib/gnu_vectordb
-   ExecStart=/home/<계정명>/academic_regulations_ai/venv/bin/python -m uvicorn scripts.api_server:app --host 0.0.0.0 --port 8000
+   ExecStart=/app_project/academic_regulations_ai/venv/bin/python -m uvicorn scripts.api_server:app --host 0.0.0.0 --port 8000
    Restart=on-failure
 
    [Install]
@@ -433,7 +451,7 @@ sudo ufw allow 8000/tcp
 sudo ufw status              # "8000/tcp ALLOW" 가 보이면 정상
 ```
 
-이후 다른 컴퓨터에서 `http://<서버의 IP 주소>:8000/` 으로 접속하면 됩니다.
+이후 다른 컴퓨터에서 `http://192.168.3.187:8000/` 으로 접속하면 됩니다.
 
 > ⚠️ 학교 네트워크가 각 서버에 공인(외부 인터넷) IP를 직접 할당하는 경우, 이
 > 서버가 교내망 밖(인터넷)에서도 접근 가능할 수 있습니다. 실제 운영으로 전환하기

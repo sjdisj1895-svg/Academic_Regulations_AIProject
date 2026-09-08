@@ -53,6 +53,22 @@ COLLECTION = "regulations"
 # (문장형 자연어 질의는 의미 검색이, 정확한 단어는 키워드 검색이 강점이므로 절충)
 VEC_WEIGHT = 0.6
 BM25_WEIGHT = 0.4
+# [T15] 질문형 자연어 질의("~어떻게 해?", "~언제까지?", "~얼마야?" 등)는 키워드보다
+# 의미(벡터) 유사도가 훨씬 중요하므로 벡터 가중치를 더 높게 준다. 단어 1~2개짜리
+# 키워드 검색("휴학", "장학")은 기존 0.6/0.4를 그대로 유지해 T5 검색 품질에 영향이 없다.
+QUESTION_VEC_WEIGHT = 0.75
+_QUESTION_PAT = re.compile(
+    r"(\?|어떻게|어떡|언제|얼마|어디|누가|누구|무엇|뭐야|뭔가요|뭐예요|되나요|되요|"
+    r"할\s*수|있나요|있어요|있을까|가능|하려면|해야|해요|인가요|일까|알려|궁금|"
+    r"하나요|합니까|입니까|받으려면|신청하|가요$|나요$|까요$|죠$|지$)")
+
+
+def _is_question_query(query: str) -> bool:
+    """질문형 자연어 질의인지 간단히 판별한다 (물음표 또는 의문 표현 + 단어 3개 이상)."""
+    q = query.strip()
+    if "?" in q:
+        return True
+    return len(q.split()) >= 3 and bool(_QUESTION_PAT.search(q))
 # 벡터DB에서 미리 가져올 후보 수 (필터링 후 재정렬하기 위한 여유분)
 CANDIDATE_POOL = 200
 # 최소 관련성 기준: 아래 둘 다 미달이면 "관련 없음"으로 판단해 결과에서 제외한다.
@@ -219,10 +235,16 @@ class SearchEngine:
         vec_norm = self._minmax_norm({cid: vec_scores.get(cid, 0.0) for cid in candidate_ids})
         bm25_norm = self._minmax_norm({cid: bm25_scores.get(cid, 0.0) for cid in candidate_ids})
 
+        # [T15] 질문형 질의면 벡터(의미) 가중치를 높이고, 키워드 검색은 기존 비율 유지
+        if _is_question_query(query):
+            vec_w, bm25_w = QUESTION_VEC_WEIGHT, 1.0 - QUESTION_VEC_WEIGHT
+        else:
+            vec_w, bm25_w = VEC_WEIGHT, BM25_WEIGHT
+
         combined = []
         for cid in candidate_ids:
-            score = (VEC_WEIGHT * vec_norm.get(cid, 0.0)
-                    + BM25_WEIGHT * bm25_norm.get(cid, 0.0))
+            score = (vec_w * vec_norm.get(cid, 0.0)
+                    + bm25_w * bm25_norm.get(cid, 0.0))
             combined.append((cid, score))
         combined.sort(key=lambda x: -x[1])
 

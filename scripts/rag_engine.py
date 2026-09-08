@@ -45,6 +45,9 @@ SYSTEM_PROMPT = (
     "참고자료에 적힌 문장을 그대로 인용하거나 쉽게 풀어 쓰는 것은 되지만, 참고자료에 없는 "
     "숫자·날짜·기간을 스스로 계산하거나 추측해서 덧붙이지 마라 (예: '수업일수 2분의 1 경과 "
     "전'이라고만 적혀 있으면 그렇게만 답하고, 이를 '몇 주 전'처럼 임의로 환산하지 마라).\n"
+    "질문이 금액·한도·비율·기간·인원 같은 구체적 수치를 묻는데 참고자료에 그 수치가 없으면, "
+    "관련 조항 내용을 요약하는 대신 '해당 내용은 규정에서 찾을 수 없습니다'라고 먼저 명확히 "
+    "밝힌 뒤 참고가 될 조항이 있으면 짧게 덧붙여라.\n"
     "답변 끝에는 근거로 사용한 규정명과 조항을 반드시 표시하라."
 )
 
@@ -167,6 +170,8 @@ class LocalHFBackend(LLMBackend):
         "숫자·날짜·기간을 스스로 계산하거나 짐작해서 덧붙이지 마라 "
         "(예: 참고자료가 '수업일수 2분의 1 경과 전'이라고만 하면 그대로만 답하고, "
         "이를 '몇 주 전'처럼 임의로 환산해서 말하지 마라). "
+        "질문이 금액·한도·비율·기간 같은 구체적 수치를 묻는데 참고자료에 그 수치가 없으면, "
+        "조항 내용을 요약하지 말고 '해당 내용은 규정에서 찾을 수 없습니다'라고 먼저 답하라. "
         "답변 끝에는 근거로 사용한 규정명과 조항을 반드시 표시하라."
     )
 
@@ -262,6 +267,56 @@ def _get_default_backend() -> LLMBackend:
     if _default_backend is None:
         _default_backend = get_llm_backend()
     return _default_backend
+
+
+# ============================================================== T15: 질의 재작성(Query Rewrite)
+# 임베딩 모델(KR-SBERT)은 "문장 ↔ 문장" 대칭 비교용이라, 구어체 질문("휴학하려면 어떻게
+# 해?")과 법조문("...휴학을 허가할 수 있다")처럼 문체가 크게 다른 쌍의 유사도는 낮게 나오는
+# 구조적 한계가 있다(T11 분석). 모델 교체(T11/T13)는 두 번 다 안전장치를 깨뜨려 롤백했으므로,
+# 대신 질문을 LLM으로 "규정 문체의 짧은 검색어"로 바꿔 임베딩하면 대칭 모델의 강점을 그대로
+# 살릴 수 있다. 외부 API(수 초 이내)일 때만 적용하고, 로컬 소형 모델은 재작성 자체가 수십 초
+# 걸려 오히려 손해라 건너뛴다. 실패·시간초과·무관한 질문이면 원문 그대로 검색한다.
+REWRITE_ENABLED = os.environ.get("GNU_RAG_REWRITE", "1") != "0"
+REWRITE_SYSTEM_PROMPT = (
+    "너는 대학 규정집 검색어 변환기다. 사용자의 구어체 질문을 규정(학칙·지침) 조문에서 쓰는 "
+    "공식 용어로 된 짧은 검색 문장 1개(15~40자)로 바꿔라. 예: '휴학하려면 어떻게 해?' → "
+    "'휴학 신청 절차 및 허가 요건'. 질문에 있는 핵심 명사는 반드시 유지하고, 질문에 없는 "
+    "규정명·숫자·조항을 새로 만들어 넣지 마라. 대학 규정(학사·연구·인사·재정·시설 등)과 "
+    "전혀 무관한 질문(날씨·로또·연예 등)이면 정확히 'N/A'만 출력하라. 설명 없이 결과만 출력하라."
+)
+
+
+def rewrite_query(query: str, backend: "LLMBackend") -> str:
+    """질문을 규정 문체 검색어로 재작성한다. 실패하거나 무관한 질문('N/A')이면 원문을 반환."""
+    if not REWRITE_ENABLED or not isinstance(backend, OpenAICompatibleBackend):
+        return query
+    try:
+        backend._lazy_client()
+        if backend._client is None:
+            return query
+        resp = backend._client.chat.completions.create(
+            model=backend.model_name,
+            messages=[
+                {"role": "system", "content": REWRITE_SYSTEM_PROMPT},
+                {"role": "user", "content": query},
+            ],
+            temperature=0.0,
+            max_tokens=60,
+            timeout=8,
+        )
+        rewritten = (resp.choices[0].message.content or "").strip().strip('"\'')
+        if not rewritten or rewritten.upper().startswith("N/A") or len(rewritten) > 80:
+            return query
+        # 재작성 결과에 원문의 핵심 어절(앞 2글자 기준)이 하나도 남아있지 않으면
+        # 주제가 바뀐 것으로 보고 폐기한다 (예: '휴학하려면' → '휴학'은 통과)
+        orig_tokens = {t for t in re.split(r"\W+", query) if len(t) >= 2}
+        if orig_tokens and not any(t[:2] in rewritten for t in orig_tokens):
+            return query
+        print(f"[RAG] 질의 재작성: '{query}' → '{rewritten}'")
+        return rewritten
+    except Exception as e:
+        print(f"[RAG] 경고: 질의 재작성 실패({e}). 원문으로 검색합니다.")
+        return query
 
 
 def _format_sources(search_result: dict) -> str:
@@ -369,8 +424,11 @@ def answer(query: str, top_k: int = TOP_N_FOR_CONTEXT, sources=None, categories=
             "used_llm": LLM을 실제로 호출했는지 여부,
         }
     """
-    # ① 검색
-    search_result = retrieve(query, top_k=top_k, sources=sources, categories=categories)
+    # ① 검색 ([T15] 외부 API 사용 시 질문을 규정 문체 검색어로 재작성해 검색 정확도 향상.
+    #    답변 생성 프롬프트와 반환값의 "query"에는 사용자의 원문 질문을 그대로 쓴다)
+    backend = llm or _get_default_backend()
+    search_query = rewrite_query(query, backend)
+    search_result = retrieve(search_query, top_k=top_k, sources=sources, categories=categories)
 
     # 관련 조항이 없거나(search_engine 기준 0건), 최상위 결과 점수가 너무 낮으면
     # (예: 흔한 단어 하나만 우연히 일치) LLM 호출 없이 즉시 반환한다.
@@ -390,7 +448,6 @@ def answer(query: str, top_k: int = TOP_N_FOR_CONTEXT, sources=None, categories=
     context = build_context(search_result)
 
     # ③ 답변 생성
-    backend = llm or _get_default_backend()
     if not backend.is_available():
         # 로컬/외부 LLM 어느 쪽도 사용할 수 없는 환경 → 에러 대신 검색 결과만 안전하게 반환
         fallback = ("[생성 불가: 사용 가능한 LLM이 없어 검색 결과만 반환합니다]\n\n"
