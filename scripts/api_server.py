@@ -72,6 +72,12 @@ class SearchResultItem(BaseModel):
     contact: str
     source_url: str
     law_url: str = ""
+    # [T20] 시행일·개정 정보·현행/폐지 상태
+    enforce_date: str = ""
+    revision_date: str = ""
+    revision_type: str = ""
+    rule_no: str = ""
+    status: str = "현행"
     score: float
 
 
@@ -98,6 +104,11 @@ class ChunkDetailResponse(BaseModel):
     contact: str
     source_url: str
     law_url: str = ""
+    enforce_date: str = ""
+    revision_date: str = ""
+    revision_type: str = ""
+    rule_no: str = ""
+    status: str = "현행"
 
 
 class AskRequest(BaseModel):
@@ -127,6 +138,11 @@ class RegulationDetailResponse(BaseModel):
     contact: str
     source_url: str
     law_url: str = ""
+    enforce_date: str = ""
+    revision_date: str = ""
+    revision_type: str = ""
+    rule_no: str = ""
+    status: str = "현행"
     full_text: str
 
 
@@ -193,11 +209,14 @@ def search(
         None, description="출처 필터: 대학, 산학협력단 (복수 선택 가능)"),
     category: Optional[list[str]] = Query(
         None, description="카테고리 필터: 학칙, 규정, 지침, 제N편… (복수 선택 가능)"),
+    include_repealed: bool = Query(
+        False, description="[T20] 폐지된 규정도 결과에 포함할지 (기본: 제외)"),
 ):
     engine = get_engine()
     t0 = time.time()
     try:
-        result = engine.search(q, top_k=top_k, sources=source, categories=category)
+        result = engine.search(q, top_k=top_k, sources=source, categories=category,
+                               include_repealed=include_repealed)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"검색 중 오류가 발생했습니다: {e}")
 
@@ -335,6 +354,7 @@ def get_chunk_detail(chunk_id: str):
     if not c:
         raise HTTPException(status_code=404, detail="해당 조항을 찾을 수 없습니다.")
     loc = c["article"] + (f" {c['clause']}" if c.get("clause") else "")
+    reg_meta = engine.reg_by_id.get(c["reg_id"], {})
     return {
         "chunk_id": c["chunk_id"], "reg_id": c["reg_id"], "source": c["source"],
         "category": c["category"], "name": c["name"], "article": c["article"],
@@ -342,6 +362,11 @@ def get_chunk_detail(chunk_id: str):
         "location": loc.strip(), "text": c["text"], "department": c["department"],
         "contact": c["contact"], "source_url": c["source_url"],
         "law_url": c.get("law_url", ""),
+        "enforce_date": reg_meta.get("enforce_date", ""),
+        "revision_date": reg_meta.get("revision_date", ""),
+        "revision_type": reg_meta.get("revision_type", ""),
+        "rule_no": reg_meta.get("rule_no", ""),
+        "status": reg_meta.get("status", "현행"),
     }
 
 

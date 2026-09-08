@@ -66,6 +66,12 @@ def main():
         print("\n[건너뜀] ① 규정 원문 수집 (--skip-collect)")
         steps.append(("수집", None, 0))
 
+    # 1-2) [T20] 시행일·개정일·현행/폐지 상태 보강 (law.go.kr 헤더 파싱, 약 3~4분)
+    #      수집을 건너뛴 경우에도 regulations.json에 필드가 비어 있으면 채운다.
+    if not skip_collect or name_filter is None:
+        ok, el = run_step("①-2 시행일·개정일·현행/폐지 상태 보강", ["scripts/enrich_dates.py"])
+        steps.append(("메타데이터 보강", ok, el))
+
     # 2) 청킹 (T2)
     chunk_args = ["scripts/chunk_rules.py"] + (["--name", name_filter] if name_filter else [])
     ok, el = run_step("② 조·항 단위 청킹", chunk_args)

@@ -227,8 +227,12 @@ class SearchEngine:
         return (snippet[:width * 2] + "…") if len(snippet) >= width * 2 else snippet
 
     # ---------------------------------------------------------------- 검색
-    def search(self, query: str, top_k: int = 10, sources=None, categories=None, rerank: bool = False):
-        """rerank=True면 상위 후보를 cross-encoder로 재순위화한다 (정확하지만 10초 안팎
+    def search(self, query: str, top_k: int = 10, sources=None, categories=None, rerank: bool = False,
+               include_repealed: bool = False):
+        """include_repealed=False(기본)면 폐지된 규정(regulations.json status='폐지')은 결과에서
+        제외한다 — 폐지 규정을 근거로 답하면 잘못된 안내가 되기 때문. 화면의 토글로 켤 수 있다. [T20]
+
+        rerank=True면 상위 후보를 cross-encoder로 재순위화한다 (정확하지만 10초 안팎
         추가로 걸림). 즉시 응답이 필요한 일반 검색(/api/search)은 기본값 False로 빠르게
         응답하고, 어차피 LLM 답변 생성에 수십 초가 걸리는 AI 질문하기(RAG)만 True로 호출해
         검색 정확도를 높인다 (rag_engine.py의 retrieve() 참고).
@@ -266,6 +270,12 @@ class SearchEngine:
             if vec_scores.get(cid, 0.0) >= MIN_VEC_SIM
             or bm25_scores.get(cid, 0.0) > MIN_BM25_SCORE
         }
+        # [T20] 폐지 규정 제외 (기본). 질문에 '폐지'가 들어있으면 사용자가 폐지 규정을 찾는 것이므로 포함
+        if not include_repealed and "폐지" not in query:
+            candidate_ids = {
+                cid for cid in candidate_ids
+                if self.reg_by_id.get(self.chunk_by_id[cid]["reg_id"], {}).get("status", "현행") != "폐지"
+            }
 
         # 4) 후보 통합 및 정규화
         vec_norm = self._minmax_norm({cid: vec_scores.get(cid, 0.0) for cid in candidate_ids})
@@ -334,6 +344,7 @@ class SearchEngine:
         results = []
         for cid, score in top:
             c = self.chunk_by_id[cid]
+            reg_meta = self.reg_by_id.get(c["reg_id"], {})
             loc = c["article"] + (f" {c['clause']}" if c.get("clause") else "")
             results.append({
                 "chunk_id": cid,
@@ -350,6 +361,12 @@ class SearchEngine:
                 "contact": c["contact"],
                 "source_url": c["source_url"],
                 "law_url": c.get("law_url", ""),
+                # [T20] 시행일·개정 정보·현행/폐지 상태 — regulations.json(enrich_dates.py)에서 붙인다
+                "enforce_date": reg_meta.get("enforce_date", ""),
+                "revision_date": reg_meta.get("revision_date", ""),
+                "revision_type": reg_meta.get("revision_type", ""),
+                "rule_no": reg_meta.get("rule_no", ""),
+                "status": reg_meta.get("status", "현행"),
                 "score": round(score, 4),
             })
 

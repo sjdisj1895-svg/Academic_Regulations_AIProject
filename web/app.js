@@ -14,6 +14,7 @@ const state = {
   lastQuery: "",
   mode: "search", // "search" | "ask"
   lastAskQuery: "",
+  includeRepealed: false, // [T20] 폐지 규정 포함 여부 (기본: 제외)
 };
 
 const el = {
@@ -185,6 +186,15 @@ function bindChipGroup(container, stateKey) {
 }
 bindChipGroup(el.sourceFilters, "source");
 
+// [T20] 폐지 규정 포함 토글
+const includeRepealedEl = document.getElementById("include-repealed");
+if (includeRepealedEl) {
+  includeRepealedEl.addEventListener("change", () => {
+    state.includeRepealed = includeRepealedEl.checked;
+    if (state.mode === "search" && state.lastQuery) runSearch(state.lastQuery);
+  });
+}
+
 // [T17] 담당부서·연락처 표기 정규화
 // 원천 데이터 형식이 제각각이다: 부서 "교무처>교무과" / "산학연구과" / "대학원>대학원",
 // 연락처 "교무처(교무과) 055-772-0101" / "055-772-0211". 화면에서는 항상
@@ -257,6 +267,7 @@ async function runSearch(query) {
       q: query, top_k: 15,
       source: state.source || undefined,
       category: state.category || undefined,
+      include_repealed: state.includeRepealed ? "true" : undefined,
     });
     renderResults(data, query);
   } catch (err) {
@@ -473,12 +484,20 @@ function renderResults(data, query) {
 function resultCardHtml(r, query) {
   const badgeCls = badgeForSource(r.source);
   const locWithTitle = r.location + (r.article_title ? `(${r.article_title})` : "");
+  // [T20] 폐지 규정 배지 + 시행일(개정 종류) 표시
+  const repealed = r.status === "폐지";
+  const statusBadge = repealed ? `<span class="badge repealed" title="폐지된 규정입니다. 참고용으로만 보세요.">폐지</span>` : "";
+  const dateText = r.enforce_date
+    ? `시행 ${escapeHtml(r.enforce_date)}${r.revision_type ? ` · ${escapeHtml(r.revision_type)}` : ""}`
+    : "";
   return `
-    <article class="result-card" data-chunk-id="${escapeHtml(r.chunk_id)}" data-reg-id="${escapeHtml(r.reg_id)}">
+    <article class="result-card ${repealed ? "repealed" : ""}" data-chunk-id="${escapeHtml(r.chunk_id)}" data-reg-id="${escapeHtml(r.reg_id)}">
       <div class="card-top">
         <span class="badge ${badgeCls}">${escapeHtml(r.source)}</span>
         <span class="badge category">${escapeHtml(r.category)}</span>
+        ${statusBadge}
         <span class="card-location">${escapeHtml(locWithTitle)}</span>
+        ${dateText ? `<span class="card-date">${dateText}</span>` : ""}
       </div>
       <div class="card-name">${highlight(r.name, query)}</div>
       <div class="card-snippet">${highlight(r.snippet, query)}</div>
@@ -528,7 +547,7 @@ async function loadModalContent() {
       el.modalBadge.className = "badge " + badgeForSource(c.source);
       el.modalTitle.textContent = c.name;
       el.modalMeta.textContent =
-        `${c.category} · ${c.location}${c.article_title ? "(" + c.article_title + ")" : ""} · 담당부서: ${formatDeptText(c.department, c.contact)}`;
+        `${c.category}${c.status === "폐지" ? " · ⚠️ 폐지된 규정" : ""}${c.enforce_date ? ` · 시행 ${c.enforce_date}` : ""} · ${c.location}${c.article_title ? "(" + c.article_title + ")" : ""} · 담당부서: ${formatDeptText(c.department, c.contact)}`;
       el.modalBody.textContent = c.text;
       el.modalSiteLink.href = c.source_url;
     } else {
@@ -536,7 +555,7 @@ async function loadModalContent() {
       el.modalBadge.textContent = r.source;
       el.modalBadge.className = "badge " + badgeForSource(r.source);
       el.modalTitle.textContent = r.name;
-      el.modalMeta.textContent = `${r.category} · 담당부서: ${formatDeptText(r.department, r.contact)}`;
+      el.modalMeta.textContent = `${r.category}${r.status === "폐지" ? " · ⚠️ 폐지된 규정" : ""}${r.enforce_date ? ` · 시행 ${r.enforce_date}${r.revision_type ? "(" + r.revision_type + ")" : ""}` : ""}${r.rule_no ? ` · ${r.rule_no}` : ""} · 담당부서: ${formatDeptText(r.department, r.contact)}`;
       el.modalBody.textContent = r.full_text;
       el.modalSiteLink.href = r.source_url;
     }

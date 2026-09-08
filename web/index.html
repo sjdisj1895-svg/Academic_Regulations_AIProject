@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" as="style" crossorigin
       href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
-<link rel="stylesheet" href="style.css?v=16">
+<link rel="stylesheet" href="style.css?v=17">
 </head>
 <body>
 
@@ -75,6 +75,11 @@
           <!-- 자바스크립트로 /api/filters 결과를 채워 넣음 -->
         </div>
       </div>
+      <!-- [T20] 폐지 규정은 기본 제외. 개정 연혁 확인 등이 필요할 때만 켠다 -->
+      <label class="filter-toggle" for="include-repealed" title="폐지된 규정도 검색 결과에 포함합니다 (기본은 현행 규정만)">
+        <input type="checkbox" id="include-repealed">
+        <span>폐지된 규정도 포함</span>
+      </label>
     </div>
   </section>
 
@@ -137,6 +142,6 @@
   <p class="footer-copy">52828 경상남도 진주시 진주대로 501 (가좌캠퍼스) · 대표전화 055-772-0114 · Copyright © Gyeongsang National University. All rights reserved.</p>
 </footer>
 
-<script src="app.js?v=16"></script>
+<script src="app.js?v=17"></script>
 </body>
 </html>
