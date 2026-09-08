@@ -6,7 +6,7 @@
       "success": true,
       "found": true,
       "used_llm": true,
-      "elapsed": 52.42,
+      "elapsed": 60.46,
       "hallucinated_numbers": [],
       "guard_triggered": false,
       "note": "",
@@ -18,11 +18,11 @@
       "success": true,
       "found": true,
       "used_llm": true,
-      "elapsed": 44.85,
+      "elapsed": 68.09,
       "hallucinated_numbers": [],
       "guard_triggered": false,
       "note": "",
-      "answer_preview": "휴학 신청은 매 학기 수업일수의 2분의 1이 경과되기 이전에 이루어져야 합니다.   **근거:** [경상국립대학교사범대학부설고등학교 학칙] 제2"
+      "answer_preview": "휴학 신청은 매 학기 수업일수의 2분의 1이 경과하기 이전에 이루어져야 합니다.   **참고자료** - [경상국립대학교 학사관리 규정] 제31조"
     },
     {
       "question": "장학금은 어떻게 신청해?",
@@ -30,7 +30,7 @@
       "success": true,
       "found": true,
       "used_llm": true,
-      "elapsed": 56.46,
+      "elapsed": 69.55,
       "hallucinated_numbers": [
         "2",
         "3",
@@ -46,7 +46,7 @@
       "success": true,
       "found": true,
       "used_llm": true,
-      "elapsed": 60.83,
+      "elapsed": 74.58,
       "hallucinated_numbers": [],
       "guard_triggered": false,
       "note": "",
@@ -58,11 +58,11 @@
       "success": true,
       "found": true,
       "used_llm": true,
-      "elapsed": 50.63,
+      "elapsed": 84.85,
       "hallucinated_numbers": [],
       "guard_triggered": false,
       "note": "",
-      "answer_preview": "해당 내용은 규정에서 찾을 수 없습니다.  참고자료에 따르면, \"연구비는 다음 각호와 같이 구분하여 지원한다.\"라는 문장이 있습니다. 그러나 해"
+      "answer_preview": "### 연구비 지원 한도  **참고자료에서 제공된 내용:** - **제5조(발전기금재단 연구비)**:   - **연구기간**: 연구 개시일부터 "
     },
     {
       "question": "오늘 서울 날씨가 어때?",
@@ -70,7 +70,7 @@
       "success": true,
       "found": false,
       "used_llm": false,
-      "elapsed": 1.36,
+      "elapsed": 1.91,
       "hallucinated_numbers": [],
       "guard_triggered": false,
       "note": "",
@@ -82,7 +82,7 @@
       "success": true,
       "found": false,
       "used_llm": false,
-      "elapsed": 7.84,
+      "elapsed": 10.92,
       "hallucinated_numbers": [],
       "guard_triggered": false,
       "note": "",
@@ -95,7 +95,7 @@
     "success_rate": 100.0,
     "hallucination_n": 1,
     "guard_triggered_n": 1,
-    "avg_time": 39.2
+    "avg_time": 52.91
   },
   "guardrail_unit_test": {
     "triggered": true,
@@ -104,6 +104,6 @@
   },
   "search_quality_regression_check": {
     "success_rate": 100.0,
-    "avg_time": 0.035704390207926436
+    "avg_time": 0.03820368448893229
   }
 }

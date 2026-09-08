@@ -63,6 +63,42 @@ _QUESTION_PAT = re.compile(
     r"하나요|합니까|입니까|받으려면|신청하|가요$|나요$|까요$|죠$|지$)")
 
 
+# [T18] 부설학교(사범대학부설고등학교·부설중학교) 학칙 감점 규칙 — 자세한 배경은 search() 내부 주석
+_ATTACHED_SCHOOL_NAME_PAT = re.compile(r"부설\s*(고등|중)학교")
+_ATTACHED_SCHOOL_QUERY_PAT = re.compile(r"부설|고등학교|중학교|고교|중등|학생부|내신")
+ATTACHED_SCHOOL_PENALTY = 0.85
+
+# [T18] 학적 용어 동의어 — 사용자가 쓰는 말과 규정 원문의 용어가 다른 경우를 잇는다.
+# (예: 사용자는 "자퇴"라고 묻지만 학칙 제55조·학사관리 규정 제43조는 "퇴학"이라고 표기)
+# 키워드(BM25) 검색 질의에만 덧붙이고, 임베딩(의미) 검색은 원문 질의를 그대로 쓴다 —
+# 임베딩까지 바꾸면 T11·T13처럼 점수 분포가 흔들릴 수 있어 가장 안전한 지점에만 적용.
+QUERY_SYNONYMS = {
+    "자퇴": ["퇴학", "자퇴원"],
+    "학고": ["학사경고"],
+    "학사경고": ["학사징계"],
+    "수강 변경": ["수강신청 정정", "수강정정"],
+    "수강신청 변경": ["수강신청 정정", "수강정정"],
+    "성적 이의": ["성적 이의신청", "성적열람"],
+    "졸업유예": ["학사학위취득 유예", "수료유예"],
+    "졸업 유예": ["학사학위취득 유예", "수료유예"],
+    "복전": ["복수전공"],
+    "부전": ["부전공"],
+    "재입학": ["재입학 허가"],
+    "출석": ["출석일수", "결석"],
+    "등록금 환불": ["등록금 반환", "등록금의 반환"],
+    "장학금 환불": ["장학금 환수", "장학금의 환수"],
+}
+
+
+def _expand_query_for_bm25(query: str) -> str:
+    """질의에 동의어 사전의 표제어가 들어있으면 규정 원문 용어를 덧붙인 BM25용 질의를 만든다."""
+    extra = []
+    for key, syns in QUERY_SYNONYMS.items():
+        if key in query:
+            extra.extend(s for s in syns if s not in query)
+    return query if not extra else query + " " + " ".join(extra)
+
+
 def _is_question_query(query: str) -> bool:
     """질문형 자연어 질의인지 간단히 판별한다 (물음표 또는 의문 표현 + 단어 3개 이상)."""
     q = query.strip()
@@ -210,7 +246,7 @@ class SearchEngine:
                 vec_scores[cid] = 1 - dist  # 코사인 거리 → 유사도
 
         # 2) 키워드 검색 (BM25, 전체 문서 대상 후 필터 적용)
-        all_bm25 = self.bm25.scores(query)
+        all_bm25 = self.bm25.scores(_expand_query_for_bm25(query))  # [T18] 학적 동의어 확장
         bm25_scores = {}
         for cid, idx in self.index_by_id.items():
             score = all_bm25[idx]
@@ -241,10 +277,19 @@ class SearchEngine:
         else:
             vec_w, bm25_w = VEC_WEIGHT, BM25_WEIGHT
 
+        # [T18] 사범대학부설고등학교·부설중학교 학칙은 '대학/규정'으로 분류돼 있어, 학부 학적 질문
+        # ("휴학 기간은 최대 몇 년?", "자퇴 절차는?")에 거의 같은 조문 구조로 1위에 끼어드는 일이
+        # 반복 관찰됐다(학적 평가셋 23문항 중 2건). 질문에 부설학교를 가리키는 말이 없으면
+        # 해당 규정의 점수를 소폭 감점해 대학 학칙·학사관리 규정이 앞에 오도록 한다.
+        # (제외가 아니라 감점이므로, 부설학교 규정만 관련 있는 질문에는 여전히 검색된다)
+        demote_attached = not _ATTACHED_SCHOOL_QUERY_PAT.search(query)
+
         combined = []
         for cid in candidate_ids:
             score = (vec_w * vec_norm.get(cid, 0.0)
                     + bm25_w * bm25_norm.get(cid, 0.0))
+            if demote_attached and _ATTACHED_SCHOOL_NAME_PAT.search(self.chunk_by_id[cid]["name"]):
+                score *= ATTACHED_SCHOOL_PENALTY
             combined.append((cid, score))
         combined.sort(key=lambda x: -x[1])
 
