@@ -472,6 +472,76 @@ Nginx가 HTTPS 인증서 처리와 포트 연결을 대신해주고, FastAPI 서
 계속 내부적으로 8000번 포트에서만 열어두면 됩니다 (`--host 0.0.0.0` 대신
 `--host 127.0.0.1`로 바꿔 외부에서 8000번 포트로 직접 접근은 막는 것이 더 안전합니다).
 
+#### 9-8-1. 실제 적용 예: 기존 사이트와 80/443 포트를 함께 쓰기 (경로 `/regulation/`)
+
+운영 서버(`gapps.gnu.ac.kr`)의 80/443은 이미 **주간업무보고 페이지**가 nginx로 쓰고
+있습니다. 한 포트는 한 프로그램만 열 수 있으므로 FastAPI를 80에 직접 띄울 수는 없고,
+대신 **기존 nginx에 "주소가 `/regulation/`으로 시작하면 8000번으로 넘겨라"는 규칙 하나를
+추가**합니다. 업무보고 페이지 코드·DB는 전혀 건드리지 않습니다.
+
+```
+https://gapps.gnu.ac.kr/                 → nginx → 127.0.0.1:8080 (업무보고, 기존 그대로)
+https://gapps.gnu.ac.kr/regulation/...   → nginx → 127.0.0.1:8000 (규정 검색, 신규)
+```
+
+웹 화면(`web/app.js`)은 자기가 놓인 경로를 보고 API 주소 접두어를 자동 계산하므로,
+`:8000/`으로 직접 열어도, `/regulation/`으로 열어도 코드 수정 없이 모두 동작합니다.
+
+**적용 순서 (nginx는 껐다 켜지 않습니다 — `reload`는 기존 접속을 끊지 않는 무중단 반영)**
+
+1. 먼저 규정 검색 서버가 최신 코드인지 확인: `git pull` → `sudo systemctl restart gnu-regulation-search`
+   (이 단계는 업무보고 페이지와 무관)
+2. nginx 설정 백업
+   ```bash
+   sudo cp /etc/nginx/conf.d/gapps.conf /etc/nginx/conf.d/gapps.conf.bak
+   ```
+3. `sudo vi /etc/nginx/conf.d/gapps.conf`를 열어, **443 server 블록 안**의 기존
+   `location / { ... }` 블록 **위에** 아래 두 블록을 그대로 붙여 넣습니다.
+   (기존 줄은 한 글자도 바꾸지 않습니다)
+   ```nginx
+       # ── 규정 통합 검색 (FastAPI 127.0.0.1:8000) ───────────────────────────
+       # /regulation (끝에 / 없음) 으로 들어오면 /regulation/ 으로 보내 상대경로가 깨지지 않게 함
+       location = /regulation {
+           return 301 /regulation/;
+       }
+
+       location /regulation/ {
+           # 끝의 / 가 핵심: 브라우저의 /regulation/api/search 가 FastAPI에는 /api/search 로 전달됨
+           proxy_pass http://127.0.0.1:8000/;
+           proxy_set_header Host              $host;
+           proxy_set_header X-Real-IP         $remote_addr;
+           proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto $scheme;
+           # AI 답변(/api/ask)은 수 초~수십 초 걸릴 수 있어 기본값(60초)보다 넉넉히
+           proxy_read_timeout 120s;
+       }
+   ```
+4. 문법 검사 — 여기서 실패하면 **아무것도 반영되지 않으니** 안심하고 확인하세요.
+   ```bash
+   sudo nginx -t          # "syntax is ok" / "test is successful" 두 줄이 나와야 함
+   ```
+5. 무중단 반영
+   ```bash
+   sudo systemctl reload nginx
+   ```
+6. 확인
+   - `https://gapps.gnu.ac.kr/regulation/` → 규정 검색 화면이 뜨고, 검색·AI 질문이 동작
+   - `https://gapps.gnu.ac.kr/` → 업무보고 페이지가 기존과 동일하게 동작
+7. (선택, 나중에) 외부에서 `:8000`으로 직접 접근하는 길을 막고 싶으면 systemd 서비스
+   파일의 `--host 0.0.0.0`을 `--host 127.0.0.1`로 바꾸고 재시작합니다. 단, 이렇게 하면
+   기존 `http://gapps.gnu.ac.kr:8000` 주소는 더 이상 열리지 않으니 안내 후 진행하세요.
+
+**문제가 생겼을 때 되돌리기 (1분 이내)**
+```bash
+sudo cp /etc/nginx/conf.d/gapps.conf.bak /etc/nginx/conf.d/gapps.conf
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+> ⚠️ 적용 전에 업무보고 페이지가 이미 `/regulation/` 경로를 쓰고 있지 않은지 확인하세요
+> (브라우저에서 `https://gapps.gnu.ac.kr/regulation/`을 열어 404가 나오면 안 쓰는 것).
+> 쓰고 있다면 위 블록의 `/regulation`을 다른 이름(예: `/rules`)으로 바꾸면 됩니다 —
+> 웹 화면은 접두어를 자동 계산하므로 이름을 바꿔도 코드 수정은 필요 없습니다.
+
 ### 9-9. 리눅스 배포 시 자주 발생하는 문제
 
 | 증상 | 원인·해결 |
