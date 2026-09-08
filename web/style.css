@@ -1,28 +1,39 @@
 /* =====================================================================
-   경상국립대학교(GNU) 홈페이지 브랜드 컬러를 반영한 디자인 시스템
-   - 메인 시그니처 블루 #009edb : GNU 공식 사이트 전역에서 가장 많이 쓰이는 포인트 컬러
-   - 다크 네이비 #091f46       : GNU 사이트의 강조 텍스트·타이틀 색상
-   - 보조 블루 #0071db / #22499d : GNU 사이트의 그라데이션·서브 강조에 사용되는 톤
+   경상국립대학교(GNU) 공식 VI(BS13 전용색상, 2025) 기준 디자인 시스템 — [T19]
+   - Main  GNU Blue  PANTONE 2192C  RGB 0·158·219   → #009edb  (핵심 포인트·헤더)
+   - Sub   GNU Grey  PANTONE Cool Gray 11C RGB 67·82·90 → #43525a (제목·본문 강조·푸터)
+   - Sub   Silver    PANTONE 877C   RGB 188·190·192 → #bcbec0  (구분선·보조)
+   - Sub   Gold      PANTONE 871C   RGB 179·161·119 → #b3a177  (산학협력단 배지)
+   ※ 이전 버전에서 쓰던 다크 네이비(#091f46)·보조 블루(#0071db)는 공식 전용색상이
+      아니어서 제거했다. 호버 등에 필요한 어두운 파랑은 GNU Blue의 명도만 낮춘 톤
+      (#007fb3)을 쓴다(BS14 색상활용의 단색 명도 변화 허용 범위).
    ===================================================================== */
 :root {
-  --color-primary: #091f46;        /* GNU 다크 네이비 (헤더 베이스) */
-  --color-primary-dark: #061530;
-  --color-signature: #009edb;      /* GNU 시그니처 블루 (핵심 포인트 컬러) */
-  --color-signature-dark: #0071db; /* GNU 보조 블루 (호버·강조) */
-  --color-accent: #009edb;
-  --color-accent-dark: #0071db;
-  --color-navy-accent: #22499d;    /* GNU 그라데이션 보조 톤 */
-  --color-bg: #f2f6fb;
+  --gnu-blue: #009edb;
+  --gnu-blue-deep: #007fb3;        /* GNU Blue 명도 하강 톤 (호버·그라데이션 끝) */
+  --gnu-grey: #43525a;
+  --gnu-grey-deep: #2f3a41;
+  --gnu-silver: #bcbec0;
+  --gnu-gold: #b3a177;
+
+  --color-primary: var(--gnu-grey);          /* 제목·강조 텍스트 */
+  --color-primary-dark: var(--gnu-grey-deep);
+  --color-signature: var(--gnu-blue);        /* 핵심 포인트 컬러 */
+  --color-signature-dark: var(--gnu-blue-deep);
+  --color-accent: var(--gnu-blue);
+  --color-accent-dark: var(--gnu-blue-deep);
+  --color-navy-accent: var(--gnu-grey);      /* (구 네이비 자리) 배지 그라데이션 보조 */
+  --color-bg: #f3f6f8;
   --color-card: #ffffff;
-  --color-border: #e1e8f2;
-  --color-text: #17233b;
-  --color-text-sub: #5c6b82;
+  --color-border: #e3e8eb;
+  --color-text: #2b353b;
+  --color-text-sub: #66737a;
   --color-highlight-bg: linear-gradient(180deg, transparent 55%, #ffe680 55%);
-  --badge-univ: #091f46;
-  --badge-foundation: #009e5e;     /* GNU 사이트에서도 쓰이는 그린 톤(#099e5e 계열) */
+  --badge-univ: var(--gnu-grey);
+  --badge-foundation: var(--gnu-gold);
   --radius: 14px;
-  --shadow: 0 2px 12px rgba(9, 31, 70, 0.07);
-  --shadow-hover: 0 10px 28px rgba(0, 158, 216, 0.18);
+  --shadow: 0 2px 12px rgba(67, 82, 90, 0.08);
+  --shadow-hover: 0 10px 28px rgba(0, 158, 219, 0.18);
 }
 
 * { box-sizing: border-box; }
@@ -37,34 +48,46 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* ===================== 헤더 (GNU 다크 네이비 → 시그니처 블루 그라데이션) ===================== */
+/* ===================== [T19] 브랜드 바 (공식 시그니처, 흰 배경) =====================
+   VI 규정상 시그니처는 형태·색상·비율을 바꿀 수 없으므로, 공식 국영문 가로조합 원본을
+   흰 배경 위에 그대로 놓는다(GNU 홈페이지 상단과 같은 방식). 높이만 조절(비율 유지). */
+.brand-bar {
+  background: #fff;
+  border-bottom: 1px solid var(--color-border);
+}
+.brand-bar-inner {
+  max-width: 900px; margin: 0 auto; padding: 12px 16px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.brand-logo img { height: 34px; width: auto; display: block; }
+.brand-links { display: flex; gap: 14px; font-size: 12.5px; }
+.brand-links a { color: var(--color-text-sub); text-decoration: none; }
+.brand-links a:hover { color: var(--gnu-blue); text-decoration: underline; }
+
+/* ===================== 헤더 히어로 (GNU Blue 단색 명도 그라데이션) ===================== */
 .site-header {
   position: relative;
-  background: linear-gradient(120deg, var(--color-primary) 0%, var(--color-navy-accent) 55%, var(--color-signature) 130%);
+  background: linear-gradient(120deg, var(--gnu-blue-deep) 0%, var(--gnu-blue) 70%, #2bb3e6 130%);
   color: #fff;
-  padding: 52px 16px 92px;
+  padding: 44px 16px 88px;
   text-align: center;
   overflow: hidden;
 }
 .site-header::after {
-  /* GNU 사이트 특유의 은은한 대각선 하이라이트 느낌 */
+  /* BS21 그래픽 모티프(빗살무늬 → 곡선)를 연상시키는 은은한 원형 하이라이트 */
   content: "";
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 85% -10%, rgba(0, 158, 216, 0.45), transparent 55%);
+  background: radial-gradient(circle at 85% -10%, rgba(255, 255, 255, 0.22), transparent 55%);
   pointer-events: none;
 }
 .header-inner { max-width: 900px; margin: 0 auto; position: relative; z-index: 1; }
-.brand { display: flex; align-items: center; justify-content: center; gap: 12px; }
-.brand-badge {
-  background: rgba(255,255,255,0.16);
-  border: 1px solid rgba(255,255,255,0.55);
-  padding: 4px 12px;
-  border-radius: 999px;
-  font-weight: 800;
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  color: #fff;
+.brand { display: flex; align-items: center; justify-content: center; gap: 14px; }
+/* 엠블럼(GNU Blue)은 파란 헤더 위에서 묻히므로 VI가 허용하는 방식대로 흰 원판 위에 원본 그대로 놓는다 */
+.brand-emblem {
+  height: 48px; width: 48px; display: block; box-sizing: border-box;
+  background: #fff; border-radius: 50%; padding: 3px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 .brand-title {
   font-size: 27px;
@@ -72,7 +95,7 @@ body {
   letter-spacing: -0.02em;
   font-family: "Pretendard Variable", "Pretendard", "GmarketSans", sans-serif;
 }
-.brand-sub { margin-top: 11px; font-size: 15px; font-weight: 400; opacity: 0.92; letter-spacing: -0.01em; }
+.brand-sub { margin-top: 11px; font-size: 15px; font-weight: 400; opacity: 0.95; letter-spacing: -0.01em; }
 
 /* ===================== 레이아웃 ===================== */
 .container {
@@ -399,9 +422,11 @@ body {
   color: #fff;
   letter-spacing: 0.01em;
 }
-.badge.src-univ { background: linear-gradient(135deg, var(--badge-univ), var(--color-navy-accent)); }
-.badge.src-foundation { background: linear-gradient(135deg, var(--badge-foundation), #00b871); }
-.badge.category { background: #e8f6fc; color: var(--color-signature-dark); font-weight: 700; }
+/* [T19] 출처 배지: 대학 = GNU Grey, 산학협력단 = GNU Gold(공식 보조색). 골드 위 흰 글자는
+   대비가 낮아 산학협력단 배지만 어두운 글자색을 쓴다 */
+.badge.src-univ { background: linear-gradient(135deg, var(--badge-univ), var(--gnu-grey-deep)); }
+.badge.src-foundation { background: linear-gradient(135deg, #c9b98f, var(--badge-foundation)); color: #3a3220; }
+.badge.category { background: #e6f5fc; color: var(--color-signature-dark); font-weight: 700; }
 
 .card-location {
   font-size: 13px;
@@ -541,14 +566,23 @@ body {
 .btn-primary:hover { filter: brightness(0.94); box-shadow: 0 6px 14px rgba(0, 158, 216, 0.4); }
 
 /* ===================== 푸터 ===================== */
+/* [T19] 푸터: GNU 홈페이지처럼 어두운(GNU Grey) 배경 + 흰색 반전 시그니처 */
 .site-footer {
   text-align: center;
-  padding: 26px 16px 40px;
+  padding: 30px 16px 36px;
   font-size: 13px;
-  color: var(--color-text-sub);
-  border-top: 1px solid var(--color-border);
-  margin-top: 20px;
+  color: rgba(255, 255, 255, 0.78);
+  background: var(--gnu-grey);
+  margin-top: 28px;
 }
+.footer-logo img { height: 30px; width: auto; display: inline-block; margin-bottom: 14px; opacity: 0.95; }
+.site-footer .footer-contact { color: #fff; }
+.site-footer .footer-contact a { color: #7fd3f5; }
+.site-footer .footer-data { color: rgba(255, 255, 255, 0.78); }
+.site-footer .footer-data b { color: #fff; }
+.site-footer .footer-links a { color: rgba(255, 255, 255, 0.78); }
+.site-footer .footer-links a:hover { color: #fff; }
+.site-footer .footer-note, .site-footer .footer-copy { color: rgba(255, 255, 255, 0.62); opacity: 1; }
 .site-footer p { margin: 0 0 6px; }
 .footer-contact { color: var(--color-primary); font-weight: 700; }
 .footer-contact a { color: var(--color-signature-dark); text-decoration: none; }
@@ -582,6 +616,14 @@ body {
 
 /* ===================== 반응형 (모바일) ===================== */
 @media (max-width: 600px) {
+  /* [T19] 모바일: 브랜드 바는 시그니처만(링크는 푸터에 동일하게 있음), 카테고리 소그룹은 세로 배치 */
+  .brand-links { display: none; }
+  .brand-logo img { height: 28px; }
+  .brand-bar-inner { padding: 10px 14px; justify-content: center; }
+  .brand-emblem { height: 40px; width: 40px; }
+  .chip-group { align-items: flex-start; }            /* '전체' 칩이 소그룹 높이만큼 늘어나지 않게 */
+  .chip-subgroup { width: 100%; }
+  .chip-subgroup + .chip-subgroup { margin-left: 0; padding-left: 0; border-left: none; margin-top: 4px; }
   .site-header { padding: 40px 16px 70px; }
   .brand-title { font-size: 19px; }
   .brand-sub { font-size: 13px; }
