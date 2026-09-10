@@ -186,6 +186,31 @@ function bindChipGroup(container, stateKey) {
 }
 bindChipGroup(el.sourceFilters, "source");
 
+// [T21] 결과 영역을 스크롤하기 시작하면 파란 헤더를 접어(body.scrolled) 결과 공간을 넓힌다.
+// 켜짐/꺼짐 기준을 다르게(80px/10px) 두어, 접히는 순간 높이가 바뀌며 다시 펴지는 떨림을 막는다.
+const pageScrollEl = document.getElementById("page-scroll");
+if (pageScrollEl) {
+  pageScrollEl.addEventListener("scroll", () => {
+    const y = pageScrollEl.scrollTop;
+    if (y > 80) {
+      document.body.classList.add("scrolled");
+      // 접힌 상태에서도 현재 필터가 뭔지 알 수 있게 한 줄 요약
+      const txt = document.getElementById("filters-collapsed-text");
+      if (txt) {
+        const parts = [];
+        if (state.source) parts.push(state.source);
+        if (state.category) parts.push(categoryChipLabel(state.category));
+        if (state.includeRepealed) parts.push("폐지 포함");
+        txt.textContent = parts.length ? `필터: ${parts.join(" · ")}` : "필터 열기";
+      }
+    } else if (y < 10) {
+      document.body.classList.remove("scrolled");
+    }
+  }, { passive: true });
+  const collapsedBtn = document.getElementById("filters-collapsed");
+  if (collapsedBtn) collapsedBtn.addEventListener("click", () => { pageScrollEl.scrollTo({ top: 0, behavior: "smooth" }); });
+}
+
 // [T20] 폐지 규정 포함 토글
 const includeRepealedEl = document.getElementById("include-repealed");
 if (includeRepealedEl) {
@@ -479,6 +504,9 @@ function renderResults(data, query) {
     </div>`;
 
   el.results.innerHTML = data.results.map((r) => resultCardHtml(r, query)).join("");
+  // [T21] 결과 영역만 스크롤되는 레이아웃이라, 새 검색 결과는 항상 맨 위부터 보이게 한다
+  const scroller = document.getElementById("page-scroll");
+  if (scroller) scroller.scrollTop = 0;
 }
 
 function resultCardHtml(r, query) {

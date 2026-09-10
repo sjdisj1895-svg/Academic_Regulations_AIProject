@@ -7,11 +7,13 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" as="style" crossorigin
       href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
-<link rel="stylesheet" href="style.css?v=18">
+<link rel="stylesheet" href="style.css?v=19">
 </head>
 <body>
 
-<!-- [T19] 브랜드 바: 경상국립대학교 공식 시그니처(국영문 가로조합, VI BS08 원본 비율 유지) -->
+<!-- [T21] 고정 영역: 브랜드 바 + 헤더 + 검색창/필터는 스크롤해도 제자리, 아래 결과 영역만 스크롤 -->
+<div class="page-top">
+<!-- [T19] 브랜드 바: 경상국립대학교 공식 원형 엠블럼 국문조합(원본 비율 유지) -->
 <div class="brand-bar">
   <div class="brand-bar-inner">
     <a class="brand-logo" href="https://www.gnu.ac.kr/main/main.do" target="_blank" rel="noopener" title="경상국립대학교 홈페이지">
@@ -34,7 +36,7 @@
   </div>
 </header>
 
-<main class="container">
+<div class="container">
 
   <!-- 검색창 영역 -->
   <section class="search-section">
@@ -81,7 +83,17 @@
         <span>폐지된 규정도 포함</span>
       </label>
     </div>
+    <!-- [T21] 결과를 스크롤하는 동안 필터가 접힌 상태일 때만 보이는 한 줄 (클릭 → 맨 위로, 필터 펼침) -->
+    <button type="button" class="filters-collapsed" id="filters-collapsed" title="맨 위로 이동해 필터를 다시 펼칩니다">
+      <span id="filters-collapsed-text">필터 열기</span> ▲
+    </button>
   </section>
+</div>
+</div><!-- /page-top -->
+
+<!-- [T21] 스크롤 영역: 검색 결과 · AI 대화만 스크롤 -->
+<main class="page-scroll" id="page-scroll">
+<div class="container container-scroll">
 
   <!-- 상태 영역 (로딩 / 결과 요약 / 결과없음) - 검색 모드 -->
   <section class="status-area mode-panel" data-mode-panel="search" id="status-area"></section>
@@ -98,6 +110,7 @@
     </div>
   </section>
 
+</div>
 </main>
 
 <!-- 미리보기 모달 -->
@@ -142,6 +155,6 @@
   <p class="footer-copy">52828 경상남도 진주시 진주대로 501 (가좌캠퍼스) · 대표전화 055-772-0114 · Copyright © Gyeongsang National University. All rights reserved.</p>
 </footer>
 
-<script src="app.js?v=18"></script>
+<script src="app.js?v=19"></script>
 </body>
 </html>

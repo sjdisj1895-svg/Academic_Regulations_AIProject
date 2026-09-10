@@ -100,11 +100,30 @@ body {
 /* ===================== 레이아웃 ===================== */
 .container {
   max-width: 900px;
-  margin: -46px auto 40px;
+  margin: -46px auto 0;
   padding: 0 16px;
   position: relative;
   z-index: 2;
 }
+
+/* ===================== [T21] 고정 상단 + 스크롤 본문 레이아웃 =====================
+   브랜드 바·헤더·검색창/필터(.page-top)와 푸터는 제자리에 두고, 결과·대화(.page-scroll)만
+   스크롤한다. 데스크톱 전용 — 모바일은 필터가 여러 줄로 길어져 고정하면 결과가 안 보이므로
+   기존처럼 문서 전체 스크롤로 둔다(아래 @media). */
+@media (min-width: 601px) {
+  html, body { height: 100%; }
+  body { display: flex; flex-direction: column; overflow: hidden; }
+  .page-top { flex: none; }
+  .page-scroll {
+    flex: 1 1 auto; min-height: 0;
+    overflow-y: auto; overflow-x: hidden;
+    scroll-behavior: smooth;
+    padding-bottom: 12px;
+  }
+  .container-scroll { margin: 0 auto 24px; z-index: 1; }
+  .chat-area { padding-bottom: 24px; }  /* 스크롤 컨테이너 안이므로 여백 확보용 큰 패딩 불필요 */
+}
+/* (압축·접힘 규칙은 우선순위 확보를 위해 파일 맨 끝 "[T21] 고정 레이아웃 보정" 블록에 있음) */
 
 /* ===================== 검색창 ===================== */
 .search-section {
@@ -654,4 +673,43 @@ body {
   .mode-tab { font-size: 13px; padding: 9px 8px; }
   .chat-user .bubble { max-width: 90%; }
   .ask-sources .result-card { padding: 12px 12px 12px 16px; }
+}
+
+.filters-collapsed { display: none; }  /* 기본 숨김(모바일 포함) — 데스크톱 스크롤 상태에서만 표시 */
+
+/* ===================== [T21] 고정 레이아웃 보정 (파일 끝: 앞선 규칙보다 우선) ===================== */
+@media (min-width: 601px) {
+  /* 상단 고정 영역 압축 */
+  body .site-header { padding: 20px 16px 64px; transition: padding 0.25s ease, max-height 0.25s ease, opacity 0.2s ease; max-height: 260px; }
+  body .brand-title { font-size: 23px; }
+  body .brand-emblem { height: 40px; width: 40px; }
+  body .brand-sub { margin-top: 6px; font-size: 13.5px; }
+  body .search-section { padding: 18px 24px 16px; }
+  body .mode-tabs { margin-bottom: 10px; }
+  body .filters { gap: 8px; margin-top: 12px; padding-top: 10px; }
+
+  /* 스크롤을 시작하면 파란 헤더를 접어 결과 영역을 넓힌다 (app.js가 body.scrolled 토글) */
+  body.scrolled .site-header { max-height: 0; padding-top: 0; padding-bottom: 0; opacity: 0; }
+  body.scrolled .page-top .container { margin-top: 10px; }
+  body .page-top .container { transition: margin-top 0.25s ease; }
+
+  /* 푸터 압축: 링크·주소 줄은 숨김(브랜드 바에 동일 링크 있음) */
+  body > .site-footer { flex: none; margin-top: 0; padding: 10px 16px 10px; }
+  body > .site-footer .footer-logo img { height: 24px; margin-bottom: 4px; }
+  body > .site-footer p { margin: 0 0 2px; font-size: 12.5px; }
+  body > .site-footer .footer-links, body > .site-footer .footer-copy { display: none; }
+  body > .site-footer .footer-note { margin-top: 2px; font-size: 11.5px; }
+  /* 스크롤 컨테이너 안이라 아래 여백용 큰 패딩(65vh) 불필요 */
+  body .chat-area { padding-bottom: 24px; }
+
+  /* 스크롤 중에는 필터를 접고 한 줄 버튼만 남긴다 (클릭 → 맨 위로 이동, 필터 다시 펼침) */
+  body.scrolled .filters { display: none; }
+  body.scrolled .filters-collapsed {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    width: 100%; margin-top: 10px; padding: 7px 12px;
+    border: 1px dashed var(--color-border); border-radius: 10px; background: var(--color-bg);
+    color: var(--color-text-sub); font-size: 12.5px; cursor: pointer;
+  }
+  body.scrolled .filters-collapsed:hover { color: var(--gnu-blue); border-color: var(--gnu-blue); }
+  body.scrolled .search-section { padding-bottom: 12px; }
 }
