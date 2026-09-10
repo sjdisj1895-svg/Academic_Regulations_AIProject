@@ -124,7 +124,7 @@ def add_kicker_title(slide, kicker, title):
     line = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.6), Inches(1.35), Inches(1.1), Pt(4))
     line.line.fill.background(); line.fill.solid(); line.fill.fore_color.rgb = BLUE; line.shadow.inherit = False
     # 우상단 소형 시그니처 (공식 국영문 가로조합)
-    sig = os.path.join(ASSET_DIR, "gnu_signature_kr_en.png")
+    sig = os.path.join(ASSET_DIR, "gnu_emblem_combo_kr_en.png")
     if os.path.exists(sig):
         slide.shapes.add_picture(sig, prs.slide_width - Inches(3.1), Inches(0.42), height=Inches(0.36))
 
@@ -188,7 +188,7 @@ def shot(name):
 # ============================================================ 1. 표지
 s = add_slide()
 add_bg(s, BLUE_DEEP, BLUE, angle=45)
-sig_w = os.path.join(ASSET_DIR, "gnu_signature_kr_en_white.png")
+sig_w = os.path.join(ASSET_DIR, "gnu_emblem_combo_kr_en_white.png")
 if os.path.exists(sig_w):
     s.shapes.add_picture(sig_w, Inches(0.6), Inches(0.6), height=Inches(0.55))
 emb = os.path.join(ASSET_DIR, "gnu_emblem_b.png")
