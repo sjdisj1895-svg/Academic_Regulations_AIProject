@@ -117,7 +117,10 @@ MIN_BM25_SCORE = 0.0  # BM25는 실제 단어가 하나라도 일치하면 0보�
 # (임베딩을 각각 따로 벡터로 만들어 비교하는 방식보다) 질문형 질의에서 훨씬 정확하다.
 # 다만 느려서 전체 문서에는 못 쓰고, 1차 하이브리드 검색으로 추린 상위 후보에만 적용한다.
 RERANK_MODEL_NAME = os.environ.get("GNU_RERANK_MODEL", "BAAI/bge-reranker-v2-m3")
-RERANK_POOL = 20            # 1차 후보 중 재순위화 대상으로 삼을 상위 개수
+# [T22] 1차 후보 중 재순위화 대상으로 삼을 상위 개수. 20→10으로 줄여 AI 질문 응답의 병목이던
+# cross-encoder 시간(CPU, 후보 수에 비례)을 절반 가까이 단축. 학적 23문항·T9 7문항으로 정확도 회귀 확인.
+# 환경변수 GNU_RERANK_POOL로 조정 가능.
+RERANK_POOL = int(os.environ.get("GNU_RERANK_POOL", "10"))
 RERANK_ENABLED = os.environ.get("GNU_RERANK_ENABLED", "1") != "0"
 
 
