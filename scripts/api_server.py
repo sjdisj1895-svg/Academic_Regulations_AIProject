@@ -98,6 +98,7 @@ class SearchResultItem(BaseModel):
     revision_type: str = ""
     rule_no: str = ""
     status: str = "현행"
+    also_sources: list[str] = []  # [T24] 다른 출처에도 같은 규정이 있을 때 (예: ["산학협력단"])
     score: float
 
 

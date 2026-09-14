@@ -515,6 +515,14 @@ function resultCardHtml(r, query) {
   // [T20] 폐지 규정 배지 + 시행일(개정 종류) 표시
   const repealed = r.status === "폐지";
   const statusBadge = repealed ? `<span class="badge repealed" title="폐지된 규정입니다. 참고용으로만 보세요.">폐지</span>` : "";
+  // [T24] 대학·산학협력단 양쪽에 같은 규정이 있으면 하나로 합쳐 보여주고 공통 배지를 붙인다
+  const SOURCE_ORDER = ["대학", "산학협력단"];
+  const sharedList = (r.also_sources && r.also_sources.length)
+    ? [...new Set([r.source, ...r.also_sources])].sort((a, b) => SOURCE_ORDER.indexOf(a) - SOURCE_ORDER.indexOf(b))
+    : [];
+  const sharedBadge = sharedList.length
+    ? `<span class="badge shared" title="${escapeHtml(sharedList.join(' · '))} 규정집에 모두 수록된 규정입니다 (같은 조문은 하나로 합쳐 표시)">${escapeHtml(sharedList.join('·'))} 공통</span>`
+    : "";
   const dateText = r.enforce_date
     ? `시행 ${escapeHtml(r.enforce_date)}${r.revision_type ? ` · ${escapeHtml(r.revision_type)}` : ""}`
     : "";
@@ -523,7 +531,7 @@ function resultCardHtml(r, query) {
       <div class="card-top">
         <span class="badge ${badgeCls}">${escapeHtml(r.source)}</span>
         <span class="badge category">${escapeHtml(r.category)}</span>
-        ${statusBadge}
+        ${statusBadge}${sharedBadge}
         <span class="card-location">${escapeHtml(locWithTitle)}</span>
         ${dateText ? `<span class="card-date">${dateText}</span>` : ""}
       </div>

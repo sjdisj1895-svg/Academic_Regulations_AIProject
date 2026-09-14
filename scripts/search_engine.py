@@ -69,6 +69,25 @@ _ATTACHED_SCHOOL_NAME_PAT = re.compile(r"부설\s*(고등|중)학교")
 _ATTACHED_SCHOOL_QUERY_PAT = re.compile(r"부설|고등학교|중학교|고교|중등|학생부|내신")
 ATTACHED_SCHOOL_PENALTY = 0.85
 
+# [T24] ② 부칙·별표·별지·머리말·전문 청크 감점 — "이 규정은 공포한 날부터 시행한다" 같은 부칙이
+# 규정명 일치만으로 1위에 오르는 사례가 잦다(예: '장학위원회 규정' 검색). 질문에 부칙/별표/서식/
+# 시행일 등을 직접 묻는 표현이 없으면 감점한다. (제외가 아니라 감점 — 별표에 답이 있는 경우 대비)
+_NON_ARTICLE_PAT = re.compile(r"^(부칙|별표|별지|서식|머리말|전문)")
+_NON_ARTICLE_QUERY_PAT = re.compile(r"부칙|별표|별지|서식|양식|시행일|경과\s*조치|개정\s*이력|연혁|언제부터\s*시행")
+NON_ARTICLE_PENALTY = 0.8
+
+# [T24] ③ 대학원 규정 감점 — 학부 질문("재입학은 언제?", "성적 이의신청은?")에 대학원 학사운영규정이
+# 1위로 오는 사례(학적 평가셋 3건). 질문에 대학원·석사·박사·학위논문 등이 없으면 소폭 감점한다.
+_GRAD_NAME_PAT = re.compile(r"대학원")
+_GRAD_QUERY_PAT = re.compile(r"대학원|석사|박사|학위\s*논문|논문\s*제출|연구생|수료|대학원생|원생")
+GRAD_PENALTY = 0.85  # 0.9로는 '수강신청 변경 기간' 질문에서 대학원 규정 3건이 여전히 상위 → 0.85로 조정
+
+# [T24] ① 중복 수집 규정 병합 — 같은 규정이 대학(law.go.kr)과 산학협력단 규정집 양쪽에서 수집된
+# 경우(17개 규정) 같은 조문이 카드 2장으로 나온다. 규정명을 정규화한 키 + 조항 위치로 묶어 하나만
+# 남기고, 함께 수집된 출처는 also_sources로 알려 화면에 "대학·산학협력단 공통" 배지를 표시한다.
+def _norm_reg_name(name: str) -> str:
+    return re.sub(r"[\s·ㆍ\-\(\)\[\]「」]", "", name).replace("경상국립대학교", "")
+
 # [T18] 학적 용어 동의어 — 사용자가 쓰는 말과 규정 원문의 용어가 다른 경우를 잇는다.
 # (예: 사용자는 "자퇴"라고 묻지만 학칙 제55조·학사관리 규정 제43조는 "퇴학"이라고 표기)
 # 키워드(BM25) 검색 질의에만 덧붙이고, 임베딩(의미) 검색은 원문 질의를 그대로 쓴다 —
@@ -319,15 +338,38 @@ class SearchEngine:
         # 해당 규정의 점수를 소폭 감점해 대학 학칙·학사관리 규정이 앞에 오도록 한다.
         # (제외가 아니라 감점이므로, 부설학교 규정만 관련 있는 질문에는 여전히 검색된다)
         demote_attached = not _ATTACHED_SCHOOL_QUERY_PAT.search(query)
+        demote_non_article = not _NON_ARTICLE_QUERY_PAT.search(query)   # [T24] ②
+        demote_grad = not _GRAD_QUERY_PAT.search(query)                 # [T24] ③
 
         combined = []
         for cid in candidate_ids:
             score = (vec_w * vec_norm.get(cid, 0.0)
                     + bm25_w * bm25_norm.get(cid, 0.0))
-            if demote_attached and _ATTACHED_SCHOOL_NAME_PAT.search(self.chunk_by_id[cid]["name"]):
+            c = self.chunk_by_id[cid]
+            if demote_attached and _ATTACHED_SCHOOL_NAME_PAT.search(c["name"]):
                 score *= ATTACHED_SCHOOL_PENALTY
+            if demote_non_article and _NON_ARTICLE_PAT.match(c["article"]):
+                score *= NON_ARTICLE_PENALTY
+            if demote_grad and _GRAD_NAME_PAT.search(c["name"]):
+                score *= GRAD_PENALTY
             combined.append((cid, score))
         combined.sort(key=lambda x: -x[1])
+
+        # [T24] ① 중복 수집 규정 병합: 같은 규정(정규화 이름)·같은 조항 위치는 점수가 높은 하나만 남긴다
+        also_sources_by_cid = {}
+        seen = {}
+        deduped = []
+        for cid, score in combined:
+            c = self.chunk_by_id[cid]
+            key = (_norm_reg_name(c["name"]), c["article"], c.get("clause", ""))
+            if key in seen:
+                keep = seen[key]
+                if c["source"] != self.chunk_by_id[keep]["source"]:
+                    also_sources_by_cid.setdefault(keep, set()).add(c["source"])
+                continue
+            seen[key] = cid
+            deduped.append((cid, score))
+        combined = deduped
 
         # 5) [T12] 재순위화: 1차 후보 상위 RERANK_POOL개만 cross-encoder로 "순서만" 다시
         #    매긴다. 중요: 여기서 나오는 cross-encoder 점수는 하이브리드 점수와 완전히
@@ -393,6 +435,8 @@ class SearchEngine:
                 "revision_type": reg_meta.get("revision_type", ""),
                 "rule_no": reg_meta.get("rule_no", ""),
                 "status": reg_meta.get("status", "현행"),
+                # [T24] 같은 규정이 다른 출처(대학/산학협력단)에서도 수집된 경우 그 출처 목록
+                "also_sources": sorted(also_sources_by_cid.get(cid, ())),
                 "score": round(score, 4),
             })
 
