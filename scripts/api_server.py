@@ -13,6 +13,7 @@ import os
 import re
 import sys
 import time
+import threading
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from datetime import datetime
 from typing import Optional
@@ -54,7 +55,26 @@ def get_engine() -> SearchEngine:
 @app.on_event("startup")
 def _startup():
     # 서버 기동 시 모델·인덱스를 미리 로딩해, 첫 검색 요청부터 3초 이내 응답이 가능하게 한다.
-    get_engine()
+    engine = get_engine()
+
+    # [T23] 재순위화 모델(cross-encoder)은 지금까지 첫 AI 질문에서야 로딩돼 첫 사용자만 20~40초를
+    # 더 기다렸다. 검색 서비스는 즉시 열어두고(위 get_engine 완료), 재순위화 모델과 외부 LLM
+    # 클라이언트는 백그라운드 스레드에서 미리 준비한다. 실패해도 기존 지연 로딩 경로가 그대로 동작.
+    def _warm_up():
+        try:
+            engine._lazy_reranker()
+        except Exception as e:  # pragma: no cover
+            print(f"[서버] 재순위화 모델 워밍업 실패(지연 로딩으로 대체): {e}")
+        try:
+            import rag_engine
+            backend = rag_engine._get_default_backend()
+            if hasattr(backend, "_lazy_client"):
+                backend._lazy_client()
+        except Exception as e:  # pragma: no cover
+            print(f"[서버] LLM 백엔드 워밍업 실패(지연 로딩으로 대체): {e}")
+        print("[서버] 워밍업 완료: 재순위화 모델·LLM 백엔드 준비됨")
+
+    threading.Thread(target=_warm_up, name="warmup", daemon=True).start()
 
 
 class SearchResultItem(BaseModel):
@@ -87,6 +107,7 @@ class SearchResponse(BaseModel):
     total: int
     results: list[SearchResultItem]
     related_regulations: list[str]
+    cached: bool = False  # [T23] 질의 결과 캐시에서 응답했는지 (운영 진단용)
 
 
 class ChunkDetailResponse(BaseModel):

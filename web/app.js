@@ -612,6 +612,54 @@ el.results.addEventListener("click", (e) => {
   }
 });
 
+// ===================== [T23] 딥링크: 검색 조건을 URL에 반영 / URL에서 복원 =====================
+// 예) /regulation/?q=휴학&source=대학&category=규정&repealed=1&mode=ask
+// 결과를 링크로 공유·북마크할 수 있고, 브라우저 뒤로가기/앞으로가기가 검색 이력을 따라간다.
+let _restoringFromUrl = false;
+
+function syncUrlFromState(query, push) {
+  const params = new URLSearchParams();
+  if (query) params.set("q", query);
+  if (state.source) params.set("source", state.source);
+  if (state.category) params.set("category", state.category);
+  if (state.includeRepealed) params.set("repealed", "1");
+  if (state.mode === "ask") params.set("mode", "ask");
+  const qs = params.toString();
+  const url = window.location.pathname + (qs ? "?" + qs : "");
+  if (url === window.location.pathname + window.location.search) return;
+  if (push) history.pushState({ q: query }, "", url); else history.replaceState({ q: query }, "", url);
+}
+
+function applyStateFromUrl() {
+  const p = new URLSearchParams(window.location.search);
+  const q = (p.get("q") || "").trim();
+  state.source = p.get("source") || "";
+  state.category = p.get("category") || "";
+  state.includeRepealed = p.get("repealed") === "1";
+  // 칩·토글 표시를 상태에 맞춰 갱신
+  el.sourceFilters.querySelectorAll(".chip").forEach((c) => c.classList.toggle("active", c.dataset.value === state.source));
+  renderCategoryChips();
+  if (includeRepealedEl) includeRepealedEl.checked = state.includeRepealed;
+  setMode(p.get("mode") === "ask" ? "ask" : "search");
+  if (q) {
+    el.input.value = q;
+    _restoringFromUrl = true;
+    runSearch(q).finally(() => { _restoringFromUrl = false; });
+  }
+}
+
+window.addEventListener("popstate", () => applyStateFromUrl());
+
+// runSearch가 끝날 때 URL을 갱신한다 (URL에서 복원 중일 때는 다시 쓰지 않음)
+const _origRunSearch = runSearch;
+runSearch = async function (query) {  // eslint-disable-line no-func-assign
+  await _origRunSearch(query);
+  if (!_restoringFromUrl) syncUrlFromState(query, true);
+};
+
 // ===================== 초기화 =====================
-loadFilters();
+loadFilters().then(() => {
+  // 카테고리 칩이 채워진 뒤에 URL 상태를 반영해야 칩 선택 표시가 맞는다
+  if (window.location.search) applyStateFromUrl();
+});
 el.input.focus();

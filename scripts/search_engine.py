@@ -16,6 +16,7 @@ import os
 import re
 import sys
 import time
+from collections import OrderedDict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from bm25_lite import BM25Lite
@@ -161,6 +162,7 @@ class SearchEngine:
 
         self._reranker = None
         self._reranker_failed = False
+        self._cache = OrderedDict()  # [T23] 질의 결과 캐시 (search() 참고)
 
     def _lazy_reranker(self):
         """[T12] 재순위화 모델을 최초 사용 시점에만 로딩한다 (필요 없으면 안 씀)."""
@@ -230,8 +232,29 @@ class SearchEngine:
         return (snippet[:width * 2] + "…") if len(snippet) >= width * 2 else snippet
 
     # ---------------------------------------------------------------- 검색
+    # [T23] 질의 결과 캐시 — 로그상 "휴학·연구비·마이크로디그리"처럼 같은 질문이 반복된다.
+    # 동일 조건(질의·개수·필터·재순위 여부·폐지 포함)의 결과를 최근 순으로 최대 CACHE_MAX개 보관해
+    # 재질의는 즉시 응답한다(특히 재순위화가 포함된 AI 질문 경로에서 6초 → 0초).
+    # 데이터가 바뀌면 엔진이 재생성되므로(refresh 후 서버 재시작) 캐시도 함께 비워진다.
+    CACHE_MAX = 300
+
     def search(self, query: str, top_k: int = 10, sources=None, categories=None, rerank: bool = False,
                include_repealed: bool = False):
+        key = (query.strip(), top_k, tuple(sorted(sources or [])), tuple(sorted(categories or [])),
+               bool(rerank), bool(include_repealed))
+        hit = self._cache.get(key)
+        if hit is not None:
+            self._cache.move_to_end(key)
+            return {**hit, "took_ms": 0.0, "cached": True}
+        result = self._search_uncached(query, top_k=top_k, sources=sources, categories=categories,
+                                       rerank=rerank, include_repealed=include_repealed)
+        self._cache[key] = result
+        if len(self._cache) > self.CACHE_MAX:
+            self._cache.popitem(last=False)
+        return result
+
+    def _search_uncached(self, query: str, top_k: int = 10, sources=None, categories=None,
+                         rerank: bool = False, include_repealed: bool = False):
         """include_repealed=False(기본)면 폐지된 규정(regulations.json status='폐지')은 결과에서
         제외한다 — 폐지 규정을 근거로 답하면 잘못된 안내가 되기 때문. 화면의 토글로 켤 수 있다. [T20]
 
