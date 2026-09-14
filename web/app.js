@@ -195,29 +195,17 @@ function bindChipGroup(container, stateKey) {
 }
 bindChipGroup(el.sourceFilters, "source");
 
-// [T21] 결과 영역을 스크롤하기 시작하면 파란 헤더를 접어(body.scrolled) 결과 공간을 넓힌다.
-// 켜짐/꺼짐 기준을 다르게(80px/10px) 두어, 접히는 순간 높이가 바뀌며 다시 펴지는 떨림을 막는다.
-const pageScrollEl = document.getElementById("page-scroll");
-if (pageScrollEl) {
-  pageScrollEl.addEventListener("scroll", () => {
-    const y = pageScrollEl.scrollTop;
-    if (y > 80) {
-      document.body.classList.add("scrolled");
-      // 접힌 상태에서도 현재 필터가 뭔지 알 수 있게 한 줄 요약
-      const txt = document.getElementById("filters-collapsed-text");
-      if (txt) {
-        const parts = [];
-        if (state.source) parts.push(state.source);
-        if (state.category) parts.push(categoryChipLabel(state.category));
-        if (state.includeRepealed) parts.push("폐지 포함");
-        txt.textContent = parts.length ? `필터: ${parts.join(" · ")}` : "필터 열기";
-      }
-    } else if (y < 10) {
-      document.body.classList.remove("scrolled");
-    }
-  }, { passive: true });
-  const collapsedBtn = document.getElementById("filters-collapsed");
-  if (collapsedBtn) collapsedBtn.addEventListener("click", () => { pageScrollEl.scrollTo({ top: 0, behavior: "smooth" }); });
+// [T28] 페이지 전체 스크롤 + 우하단 TOP 버튼 (300px 넘게 내리면 표시). T21의 고정 헤더/접힘은
+// "헤더가 고정되면 결과가 잘 안 보인다"는 피드백으로 제거했다.
+const toTopBtn = document.getElementById("to-top");
+if (toTopBtn) {
+  const updateToTop = () => toTopBtn.classList.toggle("show", window.scrollY > 300);
+  window.addEventListener("scroll", updateToTop, { passive: true });
+  updateToTop();
+  toTopBtn.addEventListener("click", () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    (state.mode === "ask" ? el.askInput : el.input).focus({ preventScroll: true });
+  });
 }
 
 // [T20] 폐지 규정 포함 토글
@@ -621,9 +609,10 @@ function renderResults(data, query) {
     </div>`;
 
   el.results.innerHTML = data.results.map((r) => resultCardHtml(r, query)).join("");
-  // [T21] 결과 영역만 스크롤되는 레이아웃이라, 새 검색 결과는 항상 맨 위부터 보이게 한다
-  const scroller = document.getElementById("page-scroll");
-  if (scroller) scroller.scrollTop = 0;
+  // [T28] 새 검색 결과는 결과 요약 줄이 화면 위쪽에 오도록 페이지를 스크롤한다
+  // (검색창이 화면 밖으로 밀려 있어도 결과부터 바로 보이게. 맨 위로는 TOP 버튼)
+  const top = el.statusArea.getBoundingClientRect().top + window.scrollY - 12;
+  if (window.scrollY > top) window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
 }
 
 function resultCardHtml(r, query) {
