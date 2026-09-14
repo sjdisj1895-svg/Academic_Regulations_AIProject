@@ -169,6 +169,7 @@ function renderFooterData(data) {
   if (data.total_regulations) parts.push(`수록 규정 <b>${Number(data.total_regulations).toLocaleString()}</b>건`);
   parts.push("원문 출처: 국가법령정보센터(law.go.kr) · 경상국립대학교 홈페이지 · 산학협력단 규정집");
   box.innerHTML = parts.join(" · ");
+  if (typeof syncFooterHeight === "function") syncFooterHeight();  // [T31] 푸터 내용이 채워진 뒤 높이 재측정
 }
 
 async function loadFilters() {
@@ -201,6 +202,18 @@ function bindChipGroup(container, stateKey) {
   });
 }
 bindChipGroup(el.sourceFilters, "source");
+
+// [T31] 푸터는 하단 고정(헤더는 스크롤). 푸터 실제 높이를 측정해 body 하단 여백(--footer-h)에 반영해
+// 마지막 결과 카드가 푸터 뒤에 가리지 않게 한다 (푸터 데이터 채워진 뒤·창 크기 변경 시 재측정).
+function syncFooterHeight() {
+  const f = document.querySelector("footer.site-footer");
+  if (!f) return;
+  document.documentElement.style.setProperty("--footer-h", `${Math.ceil(f.getBoundingClientRect().height)}px`);
+}
+window.addEventListener("resize", syncFooterHeight, { passive: true });
+window.addEventListener("load", syncFooterHeight);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(syncFooterHeight);
+syncFooterHeight();
 
 // [T28] 페이지 전체 스크롤 + 우하단 TOP 버튼 (300px 넘게 내리면 표시). T21의 고정 헤더/접힘은
 // "헤더가 고정되면 결과가 잘 안 보인다"는 피드백으로 제거했다.
