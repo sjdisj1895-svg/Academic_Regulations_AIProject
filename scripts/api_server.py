@@ -234,6 +234,9 @@ def get_filters():
         "categories_by_source": categories_by_source,
         "data_date": meta.get("data_date", ""),
         "total_regulations": meta.get("total_regulations", len({c["reg_id"] for c in engine.chunks})),
+        # [T30] "AI에게 질문하기" 탭 노출 여부. 기능(/api/ask 등)은 그대로 살려두고 화면에서만 숨긴다.
+        #       정식 오픈 시 서버 환경변수 GNU_AI_TAB_ENABLED=1 로 켠다 (기본: 숨김).
+        "ai_tab_enabled": AI_TAB_ENABLED,
     }
 
 
@@ -279,6 +282,8 @@ ASK_SUGGESTIONS = ["연구비", "휴학", "장학", "등록금", "성적", "수�
 # LLM 답변 생성은 로컬 모델 기준 수십 초가 걸릴 수 있어, 별도 스레드에서 실행 후
 # 타임아웃이 지나면 "생성 지연" 안내와 함께 검색 결과만이라도 반환한다.
 ASK_TIMEOUT_SEC = float(os.environ.get("GNU_RAG_ASK_TIMEOUT", "60"))
+# [T30] AI 탭 노출 스위치 (기본 숨김). 정식 오픈 시 systemd Environment=GNU_AI_TAB_ENABLED=1
+AI_TAB_ENABLED = os.environ.get("GNU_AI_TAB_ENABLED", "0") == "1"
 _ask_executor = ThreadPoolExecutor(max_workers=2)
 
 # T10: 질문·답변 로그 (data/rag_logs/YYYY-MM-DD.jsonl, 하루 1개 파일)

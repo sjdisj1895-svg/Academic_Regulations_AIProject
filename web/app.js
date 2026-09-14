@@ -18,6 +18,7 @@ const state = {
   chatHistory: [],        // [T26] 직전 대화 [{question, answer}] — 멀티턴용, 최근 6개까지 보관
   sort: "relevance",      // [T27] relevance | date
   recentOnly: false,      // [T27] 최근 1년 개정만
+  aiEnabled: true,        // [T30] 서버 스위치(GNU_AI_TAB_ENABLED). false면 AI 탭을 화면에서 숨김
 };
 
 // [T27] "최근 1년" 기준 날짜 (YYYY-MM-DD)
@@ -176,6 +177,12 @@ async function loadFilters() {
     categoriesBySource = data.categories_by_source || { "": data.categories || [] };
     renderCategoryChips();
     renderFooterData(data);
+    // [T30] AI 탭 노출 스위치: 서버가 꺼두면 탭 자체를 숨기고 검색 모드로 고정 (기능·API는 그대로)
+    state.aiEnabled = data.ai_tab_enabled !== false;
+    if (!state.aiEnabled) {
+      if (el.modeTabs) el.modeTabs.classList.add("hidden");
+      setMode("search");
+    }
   } catch (e) {
     console.warn("필터 목록을 불러오지 못했습니다:", e);
   }
@@ -815,7 +822,7 @@ function applyStateFromUrl() {
   if (includeRepealedEl) includeRepealedEl.checked = state.includeRepealed;
   const recentEl = document.getElementById("recent-only"); if (recentEl) recentEl.checked = state.recentOnly;
   const sortEl = document.getElementById("sort-select"); if (sortEl) sortEl.value = state.sort;
-  setMode(p.get("mode") === "ask" ? "ask" : "search");
+  setMode(p.get("mode") === "ask" && state.aiEnabled ? "ask" : "search");  // [T30] 탭이 꺼져 있으면 검색 고정
   if (q) {
     el.input.value = q;
     _restoringFromUrl = true;

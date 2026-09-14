@@ -811,3 +811,5 @@ body { word-break: keep-all; overflow-wrap: anywhere; }
   mark.modal-target { margin: 0; padding: 4px 6px; }
 }
 .status-more { color: var(--gnu-blue-deep); font-weight: 700; }
+/* [T30] AI 탭 숨김 스위치 (서버 GNU_AI_TAB_ENABLED=0 일 때 .mode-tabs에 hidden 부여) */
+.mode-tabs.hidden { display: none; }
