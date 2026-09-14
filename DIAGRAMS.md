@@ -146,27 +146,35 @@ sequenceDiagram
     participant V as 벡터DB<br/>(ChromaDB)
     participant L as Claude Haiku 4.5<br/>(FactChat API)
 
-    U->>W: 질문 입력
-    W->>A: POST /api/ask {question}
-    A->>R: answer(question)
-    R->>L: 질의 재작성 요청 (규정 문체로)
+    U->>W: 질문 입력 (예: "그럼 복학은?")
+    W->>A: POST /api/ask/stream {question, history(직전 대화 ≤3)}
+    A->>R: answer_stream(question, history)
+    R->>L: 질의 재작성 요청 (이전 질문 참고 → 독립 검색어)
     L-->>R: '휴학 신청 시기 및 절차' (또는 N/A)
     R->>S: search(query, rerank=True)
     S->>V: 유사 벡터 200개 조회
     V-->>S: 후보 + 유사도
     S->>S: BM25 · 점수 합산 · 폐지 제외 · 재순위화
     S-->>R: 상위 5개 조항 (+시행일·상태)
+    R-->>A: meta {results}
+    A-->>W: SSE event meta  (검색 직후, 약 7초)
+    W-->>U: 근거 조항 카드 먼저 표시
     alt 1위 점수 < 0.5
-        R-->>A: "규정에서 찾을 수 없습니다" (LLM 호출 없음)
+        R-->>A: done "규정에서 찾을 수 없습니다" (LLM 호출 없음)
     else 충분히 관련 있음
-        R->>L: 참고자료 5개 + 질문 + 규칙
-        L-->>R: 답변 문장
+        R->>L: 참고자료 5개 + 이전 대화(문맥용) + 질문 + 규칙 (stream=True)
+        loop 토큰 단위
+            L-->>R: 조각
+            R-->>A: token
+            A-->>W: SSE event token
+            W-->>U: 답변이 글자 단위로 채워짐
+        end
         R->>R: 규정명·숫자 가드레일 검사, 근거 목록 첨부
-        R-->>A: 답변 + 근거
+        R-->>A: done {answer, followups}
     end
     A->>A: 로그 기록 (data/rag_logs/)
-    A-->>W: JSON {answer, results}
-    W-->>U: 답변 말풍선 + 근거 조항 카드
+    A-->>W: SSE event done
+    W-->>U: 최종 답변으로 교체 + 👍👎 + 이어서 물어보기 칩
 ```
 
 ---

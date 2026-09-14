@@ -6,7 +6,7 @@
       "success": true,
       "found": true,
       "used_llm": true,
-      "elapsed": 62.9,
+      "elapsed": 67.33,
       "hallucinated_numbers": [],
       "guard_triggered": false,
       "note": "",
@@ -18,7 +18,7 @@
       "success": true,
       "found": true,
       "used_llm": true,
-      "elapsed": 70.93,
+      "elapsed": 71.53,
       "hallucinated_numbers": [],
       "guard_triggered": false,
       "note": "",
@@ -30,7 +30,7 @@
       "success": true,
       "found": true,
       "used_llm": true,
-      "elapsed": 65.09,
+      "elapsed": 75.99,
       "hallucinated_numbers": [
         "4"
       ],
@@ -44,7 +44,7 @@
       "success": true,
       "found": true,
       "used_llm": true,
-      "elapsed": 82.69,
+      "elapsed": 75.71,
       "hallucinated_numbers": [],
       "guard_triggered": false,
       "note": "",
@@ -56,11 +56,11 @@
       "success": true,
       "found": true,
       "used_llm": true,
-      "elapsed": 49.86,
+      "elapsed": 52.76,
       "hallucinated_numbers": [],
       "guard_triggered": false,
       "note": "",
-      "answer_preview": "해당 내용은 규정에서 찾을 수 없습니다.  [참조자료] [경상국립대학교 교내연구비 관리 지침] 제3조(신임 및 신진교원 연구비): \"① 연구비는"
+      "answer_preview": "해당 내용은 규정에서 찾을 수 없습니다.  [참조자료] [경상국립대학교 교내연구비 관리 지침] 제5조(발전기금재단 연구비) ② 연구기간은 연구 "
     },
     {
       "question": "오늘 서울 날씨가 어때?",
@@ -68,7 +68,7 @@
       "success": true,
       "found": false,
       "used_llm": false,
-      "elapsed": 2.29,
+      "elapsed": 2.11,
       "hallucinated_numbers": [],
       "guard_triggered": false,
       "note": "",
@@ -80,7 +80,7 @@
       "success": true,
       "found": false,
       "used_llm": false,
-      "elapsed": 8.46,
+      "elapsed": 6.77,
       "hallucinated_numbers": [],
       "guard_triggered": false,
       "note": "",
@@ -93,7 +93,7 @@
     "success_rate": 100.0,
     "hallucination_n": 1,
     "guard_triggered_n": 1,
-    "avg_time": 48.89
+    "avg_time": 50.31
   },
   "guardrail_unit_test": {
     "triggered": true,
@@ -102,6 +102,6 @@
   },
   "search_quality_regression_check": {
     "success_rate": 100.0,
-    "avg_time": 0.0499353567759196
+    "avg_time": 0.047981786727905276
   }
 }

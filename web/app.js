@@ -15,6 +15,7 @@ const state = {
   mode: "search", // "search" | "ask"
   lastAskQuery: "",
   includeRepealed: false, // [T20] 폐지 규정 포함 여부 (기본: 제외)
+  chatHistory: [],        // [T26] 직전 대화 [{question, answer}] — 멀티턴용, 최근 6개까지 보관
 };
 
 const el = {
@@ -329,14 +330,25 @@ async function askQuestion(query) {
   // 새로 추가된(맨 위) 질문 묶음이 화면 맨 위로 오도록 스크롤
   exchange.scrollIntoView({ behavior: "smooth", block: "start" });
 
+  // [T26] 직전 대화(최대 3개)를 함께 보내 "그럼 복학은?" 같은 이어 묻기를 이해하게 한다
+  const payload = {
+    question: query,
+    top_k: 5,
+    source: state.source ? [state.source] : undefined,
+    category: state.category ? [state.category] : undefined,
+    history: state.chatHistory.slice(-3),
+  };
   try {
-    const data = await apiPost("/api/ask", {
-      question: query,
-      top_k: 5,
-      source: state.source ? [state.source] : undefined,
-      category: state.category ? [state.category] : undefined,
-    });
+    let data;
+    try {
+      data = await askStreaming(payload, loadingId);   // [T26] 스트리밍 (첫 글자 1~2초 만에 표시)
+    } catch (streamErr) {
+      console.warn("[app.js] 스트리밍 실패, 일반 방식으로 재시도:", streamErr.message);
+      data = await apiPost("/api/ask", payload);
+    }
     replaceLoadingMessage(loadingId, data, query);
+    if (data.used_llm) state.chatHistory.push({ question: query, answer: (data.answer || "").slice(0, 400) });
+    if (state.chatHistory.length > 6) state.chatHistory.shift();
   } catch (err) {
     replaceLoadingMessageWithError(loadingId, err.message, query);
   } finally {
@@ -371,6 +383,60 @@ function appendLoadingMessage(container) {
 }
 
 const AI_DISCLAIMER = "⚠️ AI가 규정을 바탕으로 생성한 답변이며, 법적 효력은 원본 규정을 따릅니다.";
+
+// [T26] /api/ask/stream (SSE) 읽기: meta(근거 카드 먼저) → token(글자 단위로 채움) → done(최종본 반환)
+async function askStreaming(payload, loadingId) {
+  const res = await fetch(API_BASE + "/api/ask/stream", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+  });
+  if (!res.ok || !res.body) throw new Error(`스트리밍 요청 실패 (${res.status})`);
+
+  const node = document.getElementById(loadingId);
+  let streamEl = null, textAcc = "";
+  const showStreamBubble = () => {
+    if (!node || streamEl) return;
+    node.innerHTML = `
+      <div class="bubble ai-bubble">
+        <div class="ai-answer-text ai-streaming" id="${loadingId}-stream"></div>
+        <div class="ai-disclaimer">${AI_DISCLAIMER}</div>
+      </div>
+      <div class="ask-sources-label ai-streaming-note">근거 조항을 찾았습니다. 답변을 작성하는 중…</div>`;
+    streamEl = document.getElementById(`${loadingId}-stream`);
+  };
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder("utf-8");
+  let buf = "", done = null;
+  while (true) {
+    const { value, done: finished } = await reader.read();
+    if (finished) break;
+    buf += decoder.decode(value, { stream: true });
+    let idx;
+    while ((idx = buf.indexOf("\n\n")) >= 0) {
+      const raw = buf.slice(0, idx); buf = buf.slice(idx + 2);
+      let event = "message", dataStr = "";
+      raw.split("\n").forEach((line) => {
+        if (line.startsWith("event:")) event = line.slice(6).trim();
+        else if (line.startsWith("data:")) dataStr += line.slice(5).trim();
+      });
+      if (!dataStr) continue;
+      const data = JSON.parse(dataStr);
+      if (event === "meta") {
+        if (data.found) showStreamBubble();
+      } else if (event === "token") {
+        showStreamBubble();
+        textAcc += data.text;
+        if (streamEl) streamEl.innerHTML = escapeHtml(textAcc).replace(/\n/g, "<br>") + `<span class="stream-cursor">▍</span>`;
+      } else if (event === "done") {
+        done = data;
+      } else if (event === "error") {
+        throw new Error(data.message || "스트리밍 오류");
+      }
+    }
+  }
+  if (!done) throw new Error("응답이 완료되지 않았습니다.");
+  return done;
+}
 
 function replaceLoadingMessage(id, data, query) {
   const node = document.getElementById(id);

@@ -100,6 +100,10 @@ class LLMBackend:
     def generate(self, system_prompt: str, user_prompt: str) -> str:
         raise NotImplementedError
 
+    def generate_stream(self, system_prompt: str, user_prompt: str):
+        """[T26] 기본 구현: 스트리밍을 지원하지 않는 백엔드(로컬 모델)는 완성된 답을 한 번에 낸다."""
+        yield self.generate(system_prompt, user_prompt)
+
     def is_available(self) -> bool:
         raise NotImplementedError
 
@@ -247,6 +251,29 @@ class OpenAICompatibleBackend(LLMBackend):
         )
         return resp.choices[0].message.content.strip()
 
+    def generate_stream(self, system_prompt: str, user_prompt: str):
+        """[T26] 토큰 단위 스트리밍. OpenAI 호환 API의 stream=True를 그대로 사용한다.
+        첫 글자가 1~2초 만에 보이기 시작해 체감 대기 시간이 크게 줄어든다(총 시간은 동일)."""
+        self._lazy_client()
+        if self._client is None:
+            raise RuntimeError("외부 API를 사용할 수 없습니다.")
+        stream = self._client.chat.completions.create(
+            model=self.model_name,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.2,
+            stream=True,
+        )
+        for chunk in stream:
+            try:
+                delta = chunk.choices[0].delta.content
+            except (AttributeError, IndexError):
+                delta = None
+            if delta:
+                yield delta
+
 
 def get_llm_backend() -> LLMBackend:
     """환경변수(GNU_RAG_API_KEY)가 있으면 외부 API를, 없으면 로컬 모델을 우선 사용한다.
@@ -286,19 +313,62 @@ REWRITE_SYSTEM_PROMPT = (
 )
 
 
-def rewrite_query(query: str, backend: "LLMBackend") -> str:
-    """질문을 규정 문체 검색어로 재작성한다. 실패하거나 무관한 질문('N/A')이면 원문을 반환."""
+def _recent_history(history, n: int = 2):
+    """[T26] 직전 대화 n개(질문·답변 쌍)만 남기고, 답변은 앞 300자로 잘라 프롬프트 길이를 제한한다."""
+    out = []
+    for h in (history or [])[-n:]:
+        q = str(h.get("question", "")).strip()[:300]
+        a = str(h.get("answer", "")).strip()
+        a = a.split("[근거 조항]")[0].split("⚠️")[0].strip()[:300]
+        if q:
+            out.append({"question": q, "answer": a})
+    return out
+
+
+def rewrite_query(query: str, backend: "LLMBackend", history=None) -> str:
+    """질문을 규정 문체 검색어로 재작성한다. 실패하거나 무관한 질문('N/A')이면 원문을 반환.
+
+    [T26] history(직전 대화)가 있으면 "그럼 복학은?"처럼 앞 대화를 가리키는 짧은 질문도
+    앞 질문의 주제를 붙여 독립적인 검색어로 만든다."""
+    hist = _recent_history(history, 1)
+    prev_q = hist[-1]["question"] if hist else ""
     if not REWRITE_ENABLED or not isinstance(backend, OpenAICompatibleBackend):
+        # 재작성을 못 쓰는 환경(로컬 모델): "그럼 복학은?"처럼 짧은 후속 질문은 지시어(그럼·그건…)를
+        # 떼고 남는 핵심어("복학")로 검색한다. 핵심어가 없으면("그건 언제까지?") 앞 질문을 덧붙인다.
+        # (앞 질문을 통째로 붙이면 앞 주제(휴학)가 검색을 지배해 새 주제(복학)가 묻히는 것을 실측)
+        if prev_q and len(query) <= 16:
+            ref_words = {"그럼", "그러면", "그건", "그거", "그것", "거기서", "그리고", "근데", "그래서", "또", "그리고요"}
+            q_words = {"언제", "언제까지", "어떻게", "얼마", "얼마나", "뭐야", "뭐예요", "왜", "무엇", "어디", "누가",
+                       "해", "해요", "하나요", "되나요", "인가요", "해야", "하지", "되지", "까지", "부터", "가능", "가능해",
+                       "돼", "돼요", "되", "됩니까", "되요", "될까", "있어", "있나요", "있을까"}
+            # 앞 주제 없이 단독으로는 뜻이 안 잡히는 일반 명사 → 앞 질문의 주제어를 붙인다 ("기간" → "휴학 기간")
+            generic = {"기간", "절차", "방법", "조건", "요건", "서류", "기준", "시기", "한도", "비용", "금액", "횟수", "대상", "자격"}
+
+            def _strip(tok):
+                return re.sub(r"(은요|는요|은|는|이|가|도|요|을|를|에|에서|로|으로)$", "", tok)
+
+            core = [t for t in (_strip(x) for x in re.split(r"\s+", query.strip("?？.!! ")))
+                    if t and t not in ref_words and t not in q_words]
+            if core and all(t in generic for t in core):
+                prev_topic = next((t for t in (_strip(x) for x in re.split(r"\s+", prev_q.strip("?？.!! ")))
+                                   if t and t not in q_words and t not in generic and len(t) >= 2), "")
+                core = ([prev_topic] if prev_topic else []) + core
+            core_q = " ".join(core)
+            return core_q if len(core_q) >= 2 else f"{prev_q} {query}"
         return query
     try:
         backend._lazy_client()
         if backend._client is None:
             return query
+        user_msg = query if not prev_q else (
+            f"[이전 질문] {prev_q}\n[현재 질문] {query}\n"
+            "현재 질문이 이전 질문을 가리키는 표현(그럼, 그건, 거기서 등)을 포함하면 이전 질문의 주제를 "
+            "합쳐 독립적인 검색 문장으로 만들어라.")
         resp = backend._client.chat.completions.create(
             model=backend.model_name,
             messages=[
                 {"role": "system", "content": REWRITE_SYSTEM_PROMPT},
-                {"role": "user", "content": query},
+                {"role": "user", "content": user_msg},
             ],
             temperature=0.0,
             max_tokens=60,
@@ -307,9 +377,9 @@ def rewrite_query(query: str, backend: "LLMBackend") -> str:
         rewritten = (resp.choices[0].message.content or "").strip().strip('"\'')
         if not rewritten or rewritten.upper().startswith("N/A") or len(rewritten) > 80:
             return query
-        # 재작성 결과에 원문의 핵심 어절(앞 2글자 기준)이 하나도 남아있지 않으면
+        # 재작성 결과에 원문(또는 이전 질문)의 핵심 어절(앞 2글자 기준)이 하나도 남아있지 않으면
         # 주제가 바뀐 것으로 보고 폐기한다 (예: '휴학하려면' → '휴학'은 통과)
-        orig_tokens = {t for t in re.split(r"\W+", query) if len(t) >= 2}
+        orig_tokens = {t for t in re.split(r"\W+", query + " " + prev_q) if len(t) >= 2}
         if orig_tokens and not any(t[:2] in rewritten for t in orig_tokens):
             return query
         print(f"[RAG] 질의 재작성: '{query}' → '{rewritten}'")
@@ -411,8 +481,80 @@ def apply_number_guardrail(final_answer: str, context: str) -> str:
 
 
 # ============================================================== 통합 파이프라인
+def _prepare(query: str, top_k: int, sources, categories, llm, history):
+    """[T26] ① 검색 → ② 컨텍스트 조립 → 프롬프트 준비. answer()와 answer_stream()이 공유한다.
+
+    반환: (backend, search_result, context, early_result, user_prompt)
+      - early_result가 None이 아니면 LLM을 부르지 않고 그대로 반환해야 하는 경우(관련성 미달·LLM 불가)
+    """
+    # ① 검색 ([T15] 외부 API 사용 시 질문을 규정 문체 검색어로 재작성해 검색 정확도 향상.
+    #    [T26] 직전 대화(history)가 있으면 "그럼 복학은?" 같은 후속 질문도 독립 검색어로 만든다.
+    #    답변 생성 프롬프트와 반환값의 "query"에는 사용자의 원문 질문을 그대로 쓴다)
+    backend = llm or _get_default_backend()
+    search_query = rewrite_query(query, backend, history=history)
+    search_result = retrieve(search_query, top_k=top_k, sources=sources, categories=categories)
+
+    # 관련 조항이 없거나(search_engine 기준 0건), 최상위 결과 점수가 너무 낮으면
+    # (예: 흔한 단어 하나만 우연히 일치) LLM 호출 없이 즉시 반환한다.
+    # → 불필요한 LLM 호출 방지 + 환각 예방 (T9: 관련성 기준 미달 시 답변 생성 자체를 차단)
+    top_score = search_result["results"][0]["score"] if search_result["results"] else 0.0
+    if search_result["total"] == 0 or top_score < MIN_TOP_SCORE_FOR_ANSWER:
+        return backend, search_result, "", {
+            "query": query, "search_result": search_result, "context": "",
+            "answer": NOT_FOUND_MESSAGE, "used_llm": False, "found": False,
+        }, ""
+
+    # ② 컨텍스트 조립
+    context = build_context(search_result)
+
+    # ※ LLM 사용 가능 여부(is_available — 로컬 모델은 여기서 처음 로딩될 수 있음)는
+    #    answer()/answer_stream()에서 확인한다. 스트리밍은 그 전에 meta(근거 카드)를 먼저 보내기 위함.
+
+    # [T26] 직전 대화를 짧게 붙여 "그럼 복학은?" 같은 이어 묻기를 이해하게 한다.
+    #       단, 답변 근거는 여전히 [참고자료]만 허용한다는 규칙은 SYSTEM_PROMPT 그대로.
+    hist = _recent_history(history, 2)
+    history_block = ""
+    if hist:
+        lines = []
+        for h in hist:
+            lines.append(f"Q: {h['question']}")
+            if h["answer"]:
+                lines.append(f"A: {h['answer']}")
+        history_block = ("[이전 대화 — 문맥 파악용이며, 답변 근거로는 쓰지 말 것]\n"
+                         + "\n".join(lines) + "\n\n")
+    user_prompt = f"{history_block}[참고자료]\n{context}\n\n[질문]\n{query}"
+    return backend, search_result, context, None, user_prompt
+
+
+def _finalize(generated: str, query: str, search_result: dict, context: str) -> dict:
+    """[T26] 생성 텍스트에 출처 목록·가드레일을 적용해 최종 결과 dict를 만든다."""
+    # 모델이 근거 출처를 빠뜨렸을 수 있으니, 항상 검색 기반 출처 목록을 답변 끝에 덧붙여 보장한다.
+    final_answer = generated.strip()
+    sources_block = _format_sources(search_result)
+    if sources_block not in final_answer:
+        final_answer = f"{final_answer}\n\n[근거 조항]\n{sources_block}"
+    # T9: 근거 조항 목록에 없는 규정명을 인용했는지 검사해 경고를 덧붙인다 (환각 방지 가드레일)
+    final_answer = apply_citation_guardrail(final_answer, search_result)
+    # 참고자료 원문에 없는 숫자(스스로 계산/추정한 숫자)를 인용했는지도 함께 검사한다
+    final_answer = apply_number_guardrail(final_answer, context)
+    return {
+        "query": query, "search_result": search_result, "context": context,
+        "answer": final_answer, "used_llm": True, "found": True,
+    }
+
+
+def _generation_failed(e: Exception, query: str, search_result: dict, context: str) -> dict:
+    # LLM 호출 자체가 실패한 경우에도 에러를 내지 않고 검색 결과만 안전하게 반환
+    print(f"[RAG] 경고: LLM 답변 생성 실패 ({e}). 검색 결과만 반환합니다.")
+    fallback = (f"[생성 불가: {e}]\n\n" + _format_sources(search_result))
+    return {
+        "query": query, "search_result": search_result, "context": context,
+        "answer": fallback, "used_llm": False, "found": True,
+    }
+
+
 def answer(query: str, top_k: int = TOP_N_FOR_CONTEXT, sources=None, categories=None,
-           llm=None) -> dict:
+           llm=None, history=None) -> dict:
     """①검색 → ②컨텍스트 조립 → ③답변 생성을 순서대로 수행해 최종 결과를 반환한다.
 
     반환값:
@@ -423,79 +565,59 @@ def answer(query: str, top_k: int = TOP_N_FOR_CONTEXT, sources=None, categories=
             "answer": 최종 답변 (근거 출처 포함),
             "used_llm": LLM을 실제로 호출했는지 여부,
         }
+    history: [{"question": ..., "answer": ...}, ...] 직전 대화 (선택, [T26] 멀티턴)
     """
-    # ① 검색 ([T15] 외부 API 사용 시 질문을 규정 문체 검색어로 재작성해 검색 정확도 향상.
-    #    답변 생성 프롬프트와 반환값의 "query"에는 사용자의 원문 질문을 그대로 쓴다)
-    backend = llm or _get_default_backend()
-    search_query = rewrite_query(query, backend)
-    search_result = retrieve(search_query, top_k=top_k, sources=sources, categories=categories)
-
-    # 관련 조항이 없거나(search_engine 기준 0건), 최상위 결과 점수가 너무 낮으면
-    # (예: 흔한 단어 하나만 우연히 일치) LLM 호출 없이 즉시 반환한다.
-    # → 불필요한 LLM 호출 방지 + 환각 예방 (T9: 관련성 기준 미달 시 답변 생성 자체를 차단)
-    top_score = search_result["results"][0]["score"] if search_result["results"] else 0.0
-    if search_result["total"] == 0 or top_score < MIN_TOP_SCORE_FOR_ANSWER:
-        return {
-            "query": query,
-            "search_result": search_result,
-            "context": "",
-            "answer": NOT_FOUND_MESSAGE,
-            "used_llm": False,
-            "found": False,
-        }
-
-    # ② 컨텍스트 조립
-    context = build_context(search_result)
-
-    # ③ 답변 생성
+    backend, search_result, context, early, user_prompt = _prepare(
+        query, top_k, sources, categories, llm, history)
+    if early is not None:
+        return early
     if not backend.is_available():
-        # 로컬/외부 LLM 어느 쪽도 사용할 수 없는 환경 → 에러 대신 검색 결과만 안전하게 반환
-        fallback = ("[생성 불가: 사용 가능한 LLM이 없어 검색 결과만 반환합니다]\n\n"
-                    + _format_sources(search_result))
-        return {
-            "query": query,
-            "search_result": search_result,
-            "context": context,
-            "answer": fallback,
-            "used_llm": False,
-            "found": True,
-        }
-
-    user_prompt = f"[참고자료]\n{context}\n\n[질문]\n{query}"
+        return _llm_unavailable(query, search_result, context)
     try:
         generated = backend.generate(SYSTEM_PROMPT, user_prompt)
     except Exception as e:
-        # LLM 호출 자체가 실패한 경우에도 에러를 내지 않고 검색 결과만 안전하게 반환
-        print(f"[RAG] 경고: LLM 답변 생성 실패 ({e}). 검색 결과만 반환합니다.")
-        fallback = (f"[생성 불가: {e}]\n\n" + _format_sources(search_result))
-        return {
-            "query": query,
-            "search_result": search_result,
-            "context": context,
-            "answer": fallback,
-            "used_llm": False,
-            "found": True,
-        }
+        return _generation_failed(e, query, search_result, context)
+    return _finalize(generated, query, search_result, context)
 
-    # 모델이 근거 출처를 빠뜨렸을 수 있으니, 항상 검색 기반 출처 목록을 답변 끝에 덧붙여 보장한다.
-    final_answer = generated.strip()
-    sources_block = _format_sources(search_result)
-    if sources_block not in final_answer:
-        final_answer = f"{final_answer}\n\n[근거 조항]\n{sources_block}"
 
-    # T9: 근거 조항 목록에 없는 규정명을 인용했는지 검사해 경고를 덧붙인다 (환각 방지 가드레일)
-    final_answer = apply_citation_guardrail(final_answer, search_result)
-    # 참고자료 원문에 없는 숫자(스스로 계산/추정한 숫자)를 인용했는지도 함께 검사한다
-    final_answer = apply_number_guardrail(final_answer, context)
-
+def _llm_unavailable(query: str, search_result: dict, context: str) -> dict:
+    # 로컬/외부 LLM 어느 쪽도 사용할 수 없는 환경 → 에러 대신 검색 결과만 안전하게 반환
+    fallback = ("[생성 불가: 사용 가능한 LLM이 없어 검색 결과만 반환합니다]\n\n"
+                + _format_sources(search_result))
     return {
-        "query": query,
-        "search_result": search_result,
-        "context": context,
-        "answer": final_answer,
-        "used_llm": True,
-        "found": True,
+        "query": query, "search_result": search_result, "context": context,
+        "answer": fallback, "used_llm": False, "found": True,
     }
+
+
+def answer_stream(query: str, top_k: int = TOP_N_FOR_CONTEXT, sources=None, categories=None,
+                  llm=None, history=None):
+    """[T26] answer()의 스트리밍 판. 이벤트 dict를 순서대로 yield 한다.
+
+      {"type": "meta",  "search_result": ..., "found": bool, "context": str}   ← 검색 끝난 즉시
+      {"type": "token", "text": "..."}                                          ← 생성 중 조각들
+      {"type": "done",  "result": answer()와 같은 dict}                          ← 가드레일 적용된 최종본
+    검색 결과(근거 카드)를 먼저 보여주고, 답변은 글자 단위로 채워지다가 마지막에 최종본으로 교체된다.
+    """
+    backend, search_result, context, early, user_prompt = _prepare(
+        query, top_k, sources, categories, llm, history)
+    yield {"type": "meta", "search_result": search_result,
+           "found": early["found"] if early is not None else True, "context": context}
+    if early is not None:
+        yield {"type": "done", "result": early}
+        return
+    if not backend.is_available():  # 로컬 모델은 여기서 처음 로딩될 수 있음 — meta는 이미 보낸 뒤
+        yield {"type": "done", "result": _llm_unavailable(query, search_result, context)}
+        return
+    parts = []
+    try:
+        for piece in backend.generate_stream(SYSTEM_PROMPT, user_prompt):
+            parts.append(piece)
+            yield {"type": "token", "text": piece}
+    except Exception as e:
+        yield {"type": "done", "result": _generation_failed(e, query, search_result, context)}
+        return
+    yield {"type": "done", "result": _finalize("".join(parts), query, search_result, context)}
 
 
 # ============================================================== 직접 실행 시 테스트

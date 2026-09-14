@@ -21,6 +21,7 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 # T4: 웹 화면(web 폴더)을 API 서버가 함께 서빙한다.
@@ -70,6 +71,8 @@ def _startup():
             backend = rag_engine._get_default_backend()
             if hasattr(backend, "_lazy_client"):
                 backend._lazy_client()
+            if hasattr(backend, "_lazy_load"):   # 로컬 Qwen(대체 백엔드)도 기동 시 미리 로딩
+                backend._lazy_load()
         except Exception as e:  # pragma: no cover
             print(f"[서버] LLM 백엔드 워밍업 실패(지연 로딩으로 대체): {e}")
         print("[서버] 워밍업 완료: 재순위화 모델·LLM 백엔드 준비됨")
@@ -138,6 +141,8 @@ class AskRequest(BaseModel):
     top_k: int = 5
     source: Optional[list[str]] = None
     category: Optional[list[str]] = None
+    # [T26] 직전 대화 (멀티턴). [{"question": "...", "answer": "..."}] 최근 것부터 최대 3개만 사용
+    history: list[dict] = []
 
 
 class AskResponse(BaseModel):
@@ -333,7 +338,7 @@ def ask(req: AskRequest):
     t0 = time.time()
     future = _ask_executor.submit(
         rag_engine.answer, req.question, top_k=req.top_k,
-        sources=req.source, categories=req.category,
+        sources=req.source, categories=req.category, history=req.history[-3:],
     )
     try:
         result = future.result(timeout=ASK_TIMEOUT_SEC)
@@ -377,6 +382,57 @@ def ask(req: AskRequest):
         "suggestions": [] if found else ASK_SUGGESTIONS,
         "followups": _followup_questions(search_result["results"], req.question) if found else [],
     }
+
+
+# ---------------------------------------------------------- [T26] 스트리밍 답변 (SSE)
+def _sse(event: str, data: dict) -> str:
+    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+@app.post("/api/ask/stream", tags=["AI 질의응답"],
+          summary="[T26] RAG 답변 스트리밍 (SSE: meta → token… → done)")
+def ask_stream(req: AskRequest):
+    """검색이 끝나는 즉시 근거 조항(meta)을 보내고, 답변은 토큰 단위(token)로 흘려보낸 뒤,
+    가드레일이 적용된 최종본(done)으로 마무리한다. 화면은 done의 answer로 교체해 표시한다.
+    로컬 모델처럼 스트리밍이 안 되는 백엔드는 token 1개(완성문)만 온다."""
+    if not req.question.strip():
+        raise HTTPException(status_code=400, detail="질문(question)을 입력해주세요.")
+
+    def gen():
+        t0 = time.time()
+        try:
+            for ev in rag_engine.answer_stream(req.question, top_k=req.top_k, sources=req.source,
+                                               categories=req.category, history=req.history[-3:]):
+                if ev["type"] == "meta":
+                    sr = ev["search_result"]
+                    yield _sse("meta", {
+                        "found": ev["found"],
+                        "results": sr["results"],
+                        "related_regulations": sr["related_regulations"],
+                    })
+                elif ev["type"] == "token":
+                    yield _sse("token", {"text": ev["text"]})
+                elif ev["type"] == "done":
+                    result = ev["result"]
+                    took_ms = round((time.time() - t0) * 1000, 1)
+                    sr = result["search_result"]
+                    found, used_llm = result["found"], result["used_llm"]
+                    status = "answered" if used_llm else ("refused" if not found else "fallback_no_llm")
+                    _log_ask_interaction(req.question, [r["chunk_id"] for r in sr["results"]],
+                                         result["answer"], took_ms, found, used_llm, status)
+                    yield _sse("done", {
+                        "query": req.question, "found": found, "answer": result["answer"],
+                        "used_llm": used_llm, "results": sr["results"],
+                        "related_regulations": sr["related_regulations"], "took_ms": took_ms,
+                        "suggestions": [] if found else ASK_SUGGESTIONS,
+                        "followups": _followup_questions(sr["results"], req.question) if found else [],
+                    })
+        except Exception as e:
+            print(f"[RAG] 경고: /api/ask/stream 처리 중 오류 ({e})")
+            yield _sse("error", {"message": str(e)})
+
+    return StreamingResponse(gen(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
 # ---------------------------------------------------------- [T25] 후속 질문 제안 · 피드백 · 인기 검색어

@@ -745,3 +745,9 @@ mark.modal-target {
   padding: 14px 16px; box-shadow: var(--shadow);
 }
 .popular-label { font-size: 13px; font-weight: 700; color: var(--color-primary); margin-bottom: 8px; }
+
+/* ===================== [T26] 스트리밍 답변 ===================== */
+.ai-streaming { min-height: 1.4em; }
+.stream-cursor { display: inline-block; color: var(--gnu-blue); animation: stream-blink 0.9s steps(2) infinite; margin-left: 1px; }
+@keyframes stream-blink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
+.ai-streaming-note { color: var(--color-text-sub); font-size: 12.5px; }
