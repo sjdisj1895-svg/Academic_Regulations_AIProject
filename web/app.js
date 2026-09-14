@@ -16,7 +16,15 @@ const state = {
   lastAskQuery: "",
   includeRepealed: false, // [T20] 폐지 규정 포함 여부 (기본: 제외)
   chatHistory: [],        // [T26] 직전 대화 [{question, answer}] — 멀티턴용, 최근 6개까지 보관
+  sort: "relevance",      // [T27] relevance | date
+  recentOnly: false,      // [T27] 최근 1년 개정만
 };
+
+// [T27] "최근 1년" 기준 날짜 (YYYY-MM-DD)
+function oneYearAgoISO() {
+  const d = new Date(); d.setFullYear(d.getFullYear() - 1);
+  return d.toISOString().slice(0, 10);
+}
 
 const el = {
   form: document.getElementById("search-form"),
@@ -294,6 +302,8 @@ async function runSearch(query) {
       source: state.source || undefined,
       category: state.category || undefined,
       include_repealed: state.includeRepealed ? "true" : undefined,
+      since: state.recentOnly ? oneYearAgoISO() : undefined,   // [T27]
+      sort: state.sort !== "relevance" ? state.sort : undefined, // [T27]
     });
     renderResults(data, query);
   } catch (err) {
@@ -634,7 +644,8 @@ function resultCardHtml(r, query) {
     ? `시행 ${escapeHtml(r.enforce_date)}${r.revision_type ? ` · ${escapeHtml(r.revision_type)}` : ""}`
     : "";
   return `
-    <article class="result-card ${repealed ? "repealed" : ""}" data-chunk-id="${escapeHtml(r.chunk_id)}" data-reg-id="${escapeHtml(r.reg_id)}">
+    <article class="result-card ${repealed ? "repealed" : ""}" data-chunk-id="${escapeHtml(r.chunk_id)}" data-reg-id="${escapeHtml(r.reg_id)}"
+             tabindex="0" role="button" aria-label="${escapeHtml(r.name)} ${escapeHtml(locWithTitle)} 미리보기">
       <div class="card-top">
         <span class="badge ${badgeCls}">${escapeHtml(r.source)}</span>
         <span class="badge category">${escapeHtml(r.category)}</span>
@@ -785,6 +796,8 @@ function syncUrlFromState(query, push) {
   if (state.source) params.set("source", state.source);
   if (state.category) params.set("category", state.category);
   if (state.includeRepealed) params.set("repealed", "1");
+  if (state.recentOnly) params.set("recent", "1");           // [T27]
+  if (state.sort && state.sort !== "relevance") params.set("sort", state.sort); // [T27]
   if (state.mode === "ask") params.set("mode", "ask");
   const qs = params.toString();
   const url = window.location.pathname + (qs ? "?" + qs : "");
@@ -798,10 +811,14 @@ function applyStateFromUrl() {
   state.source = p.get("source") || "";
   state.category = p.get("category") || "";
   state.includeRepealed = p.get("repealed") === "1";
+  state.recentOnly = p.get("recent") === "1";                                  // [T27]
+  state.sort = p.get("sort") === "date" ? "date" : "relevance";               // [T27]
   // 칩·토글 표시를 상태에 맞춰 갱신
   el.sourceFilters.querySelectorAll(".chip").forEach((c) => c.classList.toggle("active", c.dataset.value === state.source));
   renderCategoryChips();
   if (includeRepealedEl) includeRepealedEl.checked = state.includeRepealed;
+  const recentEl = document.getElementById("recent-only"); if (recentEl) recentEl.checked = state.recentOnly;
+  const sortEl = document.getElementById("sort-select"); if (sortEl) sortEl.value = state.sort;
   setMode(p.get("mode") === "ask" ? "ask" : "search");
   if (q) {
     el.input.value = q;
@@ -818,6 +835,53 @@ runSearch = async function (query) {  // eslint-disable-line no-func-assign
   await _origRunSearch(query);
   if (!_restoringFromUrl) syncUrlFromState(query, true);
 };
+
+// ===================== [T27] 정렬·기간 필터 · 키보드 단축키 · 인쇄 · 접근성 =====================
+const sortSelectEl = document.getElementById("sort-select");
+if (sortSelectEl) {
+  sortSelectEl.addEventListener("change", () => {
+    state.sort = sortSelectEl.value === "date" ? "date" : "relevance";
+    if (state.mode === "search" && state.lastQuery) runSearch(state.lastQuery);
+  });
+}
+const recentOnlyEl = document.getElementById("recent-only");
+if (recentOnlyEl) {
+  recentOnlyEl.addEventListener("change", () => {
+    state.recentOnly = recentOnlyEl.checked;
+    if (state.mode === "search" && state.lastQuery) runSearch(state.lastQuery);
+  });
+}
+
+// 키보드: "/" → 현재 탭의 입력창 포커스, ↑↓ → 결과 카드 이동, Enter/Space → 카드 미리보기
+document.addEventListener("keydown", (e) => {
+  const tag = (e.target.tagName || "").toLowerCase();
+  const typing = tag === "input" || tag === "textarea" || tag === "select" || e.target.isContentEditable;
+  if (e.key === "/" && !typing && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault();
+    (state.mode === "ask" ? el.askInput : el.input).focus();
+    return;
+  }
+  const card = e.target.closest && e.target.closest(".result-card");
+  if (!card) return;
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    openPreview(card.dataset.chunkId, card.dataset.regId);
+  } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    const cards = [...card.parentElement.querySelectorAll(".result-card")];
+    const i = cards.indexOf(card);
+    const next = cards[i + (e.key === "ArrowDown" ? 1 : -1)];
+    if (next) { e.preventDefault(); next.focus({ preventScroll: false }); next.scrollIntoView({ block: "nearest" }); }
+  }
+});
+
+// 인쇄: 모달이 열려 있을 때는 모달 내용만 인쇄 (print CSS가 나머지를 숨김)
+const modalPrintBtn = document.getElementById("modal-print");
+if (modalPrintBtn) modalPrintBtn.addEventListener("click", () => window.print());
+// 모달 열림 상태를 body 클래스로 노출 (print CSS · 배경 스크롤 제어용)
+const _modalObserver = new MutationObserver(() => {
+  document.body.classList.toggle("modal-open", !el.modalOverlay.classList.contains("hidden"));
+});
+_modalObserver.observe(el.modalOverlay, { attributes: true, attributeFilter: ["class"] });
 
 // ===================== [T25] 첫 화면: 많이 찾는 검색어 =====================
 // 검색 전 빈 결과 영역에 로그 기반 인기 검색어 칩을 보여준다 (클릭 → 바로 검색).

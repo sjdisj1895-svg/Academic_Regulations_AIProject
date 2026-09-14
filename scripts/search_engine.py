@@ -258,22 +258,25 @@ class SearchEngine:
     CACHE_MAX = 300
 
     def search(self, query: str, top_k: int = 10, sources=None, categories=None, rerank: bool = False,
-               include_repealed: bool = False):
+               include_repealed: bool = False, since: str = "", sort: str = "relevance"):
+        """[T27] since='YYYY-MM-DD'면 그 날짜 이후 시행(개정)된 규정만, sort='date'면 시행일 최신순 정렬."""
         key = (query.strip(), top_k, tuple(sorted(sources or [])), tuple(sorted(categories or [])),
-               bool(rerank), bool(include_repealed))
+               bool(rerank), bool(include_repealed), since or "", sort or "relevance")
         hit = self._cache.get(key)
         if hit is not None:
             self._cache.move_to_end(key)
             return {**hit, "took_ms": 0.0, "cached": True}
         result = self._search_uncached(query, top_k=top_k, sources=sources, categories=categories,
-                                       rerank=rerank, include_repealed=include_repealed)
+                                       rerank=rerank, include_repealed=include_repealed,
+                                       since=since, sort=sort)
         self._cache[key] = result
         if len(self._cache) > self.CACHE_MAX:
             self._cache.popitem(last=False)
         return result
 
     def _search_uncached(self, query: str, top_k: int = 10, sources=None, categories=None,
-                         rerank: bool = False, include_repealed: bool = False):
+                         rerank: bool = False, include_repealed: bool = False,
+                         since: str = "", sort: str = "relevance"):
         """include_repealed=False(기본)면 폐지된 규정(regulations.json status='폐지')은 결과에서
         제외한다 — 폐지 규정을 근거로 답하면 잘못된 안내가 되기 때문. 화면의 토글로 켤 수 있다. [T20]
 
@@ -320,6 +323,12 @@ class SearchEngine:
             candidate_ids = {
                 cid for cid in candidate_ids
                 if self.reg_by_id.get(self.chunk_by_id[cid]["reg_id"], {}).get("status", "현행") != "폐지"
+            }
+        # [T27] 기간 필터: since(YYYY-MM-DD) 이후에 시행(최종 개정)된 규정만
+        if since:
+            candidate_ids = {
+                cid for cid in candidate_ids
+                if (self.reg_by_id.get(self.chunk_by_id[cid]["reg_id"], {}).get("enforce_date", "") or "") >= since
             }
 
         # 4) 후보 통합 및 정규화
@@ -439,6 +448,10 @@ class SearchEngine:
                 "also_sources": sorted(also_sources_by_cid.get(cid, ())),
                 "score": round(score, 4),
             })
+
+        # [T27] 시행일 최신순 정렬 (관련도로 고른 상위 결과 안에서만 재정렬 — 무관한 최신 규정이 끼어들지 않게)
+        if sort == "date":
+            results.sort(key=lambda r: (r.get("enforce_date") or "", r["score"]), reverse=True)
 
         related_regulations = list(dict.fromkeys(r["name"] for r in results))  # 순서 보존 중복 제거
         took_ms = round((time.time() - t0) * 1000, 1)

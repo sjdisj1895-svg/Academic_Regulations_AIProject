@@ -248,12 +248,18 @@ def search(
         None, description="카테고리 필터: 학칙, 규정, 지침, 제N편… (복수 선택 가능)"),
     include_repealed: bool = Query(
         False, description="[T20] 폐지된 규정도 결과에 포함할지 (기본: 제외)"),
+    since: str = Query("", description="[T27] 이 날짜(YYYY-MM-DD) 이후 시행·개정된 규정만"),
+    sort: str = Query("relevance", description="[T27] relevance(관련도) | date(시행일 최신순)"),
 ):
     engine = get_engine()
     t0 = time.time()
+    if sort not in ("relevance", "date"):
+        raise HTTPException(status_code=400, detail="sort는 relevance 또는 date 이어야 합니다.")
+    if since and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", since):
+        raise HTTPException(status_code=400, detail="since는 YYYY-MM-DD 형식이어야 합니다.")
     try:
         result = engine.search(q, top_k=top_k, sources=source, categories=category,
-                               include_repealed=include_repealed)
+                               include_repealed=include_repealed, since=since, sort=sort)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"검색 중 오류가 발생했습니다: {e}")
 

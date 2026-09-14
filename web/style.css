@@ -751,3 +751,48 @@ mark.modal-target {
 .stream-cursor { display: inline-block; color: var(--gnu-blue); animation: stream-blink 0.9s steps(2) infinite; margin-left: 1px; }
 @keyframes stream-blink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
 .ai-streaming-note { color: var(--color-text-sub); font-size: 12.5px; }
+
+/* ===================== [T27] 접근성 · 정렬/기간 필터 · 단축키 · 인쇄 ===================== */
+/* 키보드 포커스 표시 (마우스 클릭 시엔 안 보이고, Tab 이동 시에만 또렷하게) */
+:focus-visible { outline: 3px solid var(--gnu-blue); outline-offset: 2px; border-radius: 6px; }
+.chip:focus-visible, .mode-tab:focus-visible, .suggest-chip:focus-visible, .followup-chip:focus-visible { outline-offset: 1px; }
+.result-card:focus-visible { outline: 3px solid var(--gnu-blue); outline-offset: 0; box-shadow: var(--shadow-hover); }
+/* 색 대비 보정: 보조 텍스트가 흰 배경에서 4.5:1 이상 유지되도록 살짝 진하게 */
+:root { --color-text-sub: #5d6a71; }
+
+.filter-row-bottom { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+.filter-sort { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--color-text-sub); }
+.filter-sort select {
+  border: 1px solid var(--color-border); border-radius: 8px; padding: 4px 8px; font-size: 13px;
+  background: #fff; color: var(--color-text); font-family: inherit;
+}
+.kbd-hint { margin-left: auto; font-size: 11.5px; color: var(--color-text-sub); white-space: nowrap; }
+.kbd-hint kbd {
+  display: inline-block; border: 1px solid var(--gnu-silver); border-bottom-width: 2px; border-radius: 4px;
+  padding: 0 5px; font-family: inherit; font-size: 11px; background: #fff; color: var(--gnu-grey);
+}
+.btn-secondary {
+  border: 1px solid var(--color-border); background: #fff; color: var(--gnu-grey); border-radius: 999px;
+  padding: 9px 16px; font-size: 13.5px; font-weight: 700; cursor: pointer; margin-right: 8px;
+}
+.btn-secondary:hover { border-color: var(--gnu-blue); color: var(--gnu-blue-deep); }
+@media (max-width: 600px) { .kbd-hint { display: none; } }
+
+/* 인쇄: 모달이 열려 있으면 모달 본문만, 아니면 검색 결과 목록만 */
+@media print {
+  body { display: block !important; overflow: visible !important; background: #fff; color: #000; }
+  .brand-links, .site-header, .search-section, .site-footer .footer-links, .site-footer .footer-copy,
+  .filters-collapsed, .card-actions, .feedback-bar, .followup-list, .kbd-hint, .ai-disclaimer { display: none !important; }
+  .page-scroll { overflow: visible !important; height: auto !important; }
+  .result-card { break-inside: avoid; box-shadow: none; border: 1px solid #999; }
+  body.modal-open .page-top, body.modal-open .page-scroll, body.modal-open .site-footer { display: none !important; }
+  body.modal-open .modal-overlay { position: static !important; background: none !important; display: block !important; }
+  body.modal-open .modal { position: static !important; max-height: none !important; box-shadow: none; width: 100%; max-width: none; }
+  body.modal-open .modal-close, body.modal-open .modal-tabs, body.modal-open .modal-footer { display: none !important; }
+  body.modal-open .modal-body { max-height: none !important; overflow: visible !important; }
+  mark.modal-target { background: #eee !important; border-left-color: #000; }
+  .site-footer { background: none !important; color: #000 !important; border-top: 1px solid #999; }
+  .site-footer p, .site-footer a { color: #000 !important; }
+}
+/* 기존 .chip:focus 색(회색)보다 우선하도록 포커스 링 색을 GNU Blue로 고정 */
+.chip:focus-visible, .mode-tab:focus-visible, button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible { outline-color: var(--gnu-blue) !important; }
