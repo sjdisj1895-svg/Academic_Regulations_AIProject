@@ -601,11 +601,18 @@ function renderResults(data, query) {
     return;
   }
 
+  // [T29] 모바일에서는 연관 규정을 3개만 보여주고 "외 N개"로 축약 (긴 글 덩어리 방지). 규정명의
+  //       '경상국립대학교' 접두어도 줄여 한 줄에 더 많이 들어가게 한다. 전체 목록은 title로 제공.
+  const isMobile = window.matchMedia("(max-width: 600px)").matches;
+  const rel = data.related_regulations;
+  const shown = isMobile ? rel.slice(0, 3) : rel;
+  const short = (n) => isMobile ? n.replace(/^경상국립대학교\s*/, "") : n;
+  const more = rel.length - shown.length;
   el.statusArea.innerHTML = `
-    <div class="status-summary">
+    <div class="status-summary" title="${escapeHtml(rel.join(", "))}">
       '<b>${escapeHtml(query)}</b>' 검색 결과 <b>${data.total}</b>건
       (${data.took_ms}ms) · 연관 규정
-      <b>${data.related_regulations.length}</b>개: ${escapeHtml(data.related_regulations.join(", "))}
+      <b>${rel.length}</b>개: ${escapeHtml(shown.map(short).join(", "))}${more > 0 ? ` <span class="status-more">외 ${more}개</span>` : ""}
     </div>`;
 
   el.results.innerHTML = data.results.map((r) => resultCardHtml(r, query)).join("");

@@ -760,3 +760,54 @@ mark.modal-target {
 @media print { .to-top { display: none !important; } }
 /* [T28] 결과 영역 컨테이너: 검색창 컨테이너의 음수 상단 여백(-46px)을 상속하지 않게 */
 .container-scroll { margin: 0 auto 40px; }
+
+/* ===================== [T29] 모바일 가독성 보정 ===================== */
+/* 한글은 단어 중간에서 줄이 끊기지 않게(keep-all), 아주 긴 토큰(URL 등)만 강제 줄바꿈 */
+body { word-break: keep-all; overflow-wrap: anywhere; }
+.card-dept a.dept-tel, .footer-contact a, .card-date { white-space: nowrap; }  /* 전화번호·날짜는 한 덩어리로 */
+
+@media (max-width: 600px) {
+  /* 카테고리 칩: 글자를 줄여 한 줄에 2~3개씩 흐르게 (이전엔 한 줄에 하나씩 세로로 늘어짐) */
+  .chip { padding: 5px 10px; font-size: 12px; }
+  .chip-subgroup { width: 100%; gap: 5px; }
+  .chip-subgroup-label { width: auto; font-size: 11px; margin-right: 2px; }
+  .filter-group { gap: 6px; }
+  .filters { gap: 10px; margin-top: 16px; padding-top: 14px; }
+  /* 하단 행: 토글 2개는 한 줄, 정렬은 다음 줄 전체 폭 */
+  .filter-row-bottom { gap: 10px 14px; }
+  .filter-sort { width: 100%; justify-content: space-between; }
+  .filter-sort select { flex: 1; margin-left: 8px; max-width: 220px; }
+  .kbd-hint { display: none; }
+
+  /* 결과 요약: 글자 크기·줄간격 정리 (연관 규정은 JS에서 3개 + 외 N개로 축약) */
+  .status-summary { font-size: 13px; line-height: 1.55; }
+  .status-area { margin: 16px 2px 10px; }
+
+  /* 카드: 상단 배지 줄과 날짜를 분리, 본문 줄간격 */
+  .card-top { gap: 6px 8px; }
+  .card-date { margin-left: 0; width: 100%; order: 10; font-size: 11.5px; }
+  .card-location { font-size: 12.5px; }
+  .card-name { font-size: 15px; line-height: 1.45; }
+  .card-snippet { font-size: 13.5px; line-height: 1.65; }
+  .card-dept { font-size: 12.5px; line-height: 1.6; }
+  .card-actions { width: 100%; display: flex; gap: 8px; }
+  .card-actions .btn-preview, .card-actions a { flex: 1; text-align: center; }
+
+  /* 헤더·검색창 */
+  .brand-title { font-size: 19px; }
+  .brand-sub { font-size: 12.5px; }
+  #search-input, #ask-input { font-size: 15px; padding: 12px 14px; }
+  #search-input::placeholder, #ask-input::placeholder { font-size: 13px; }
+
+  /* 푸터: 줄 수 줄이기 */
+  .site-footer { padding: 22px 14px 28px; font-size: 12px; }
+  .site-footer .footer-links, .site-footer .footer-copy { display: none; }
+  .footer-data { font-size: 11.5px; }
+
+  /* AI 탭 */
+  .ai-bubble { font-size: 14px; line-height: 1.65; }
+  .followup-chip { font-size: 12.5px; padding: 5px 10px; }
+  .ask-sources .result-card { padding: 12px 12px 12px 16px; }
+  mark.modal-target { margin: 0; padding: 4px 6px; }
+}
+.status-more { color: var(--gnu-blue-deep); font-weight: 700; }
