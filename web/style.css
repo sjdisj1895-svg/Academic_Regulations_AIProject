@@ -715,3 +715,33 @@ body {
   body.scrolled .filters-collapsed:hover { color: var(--gnu-blue); border-color: var(--gnu-blue); }
   body.scrolled .search-section { padding-bottom: 12px; }
 }
+
+/* ===================== [T25] AI 탭 완성도: 조문 하이라이트 · 피드백 · 후속 질문 · 인기 검색어 ===================== */
+mark.modal-target {
+  background: linear-gradient(180deg, rgba(0, 158, 219, 0.10), rgba(0, 158, 219, 0.18));
+  color: inherit; border-left: 4px solid var(--gnu-blue); padding: 6px 8px 6px 10px; margin: 0 -8px;
+  display: inline-block; border-radius: 6px; box-decoration-break: clone;
+}
+.feedback-bar {
+  display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px;
+  border-top: 1px dashed var(--color-border); font-size: 12.5px; color: var(--color-text-sub);
+}
+.feedback-btn {
+  border: 1px solid var(--color-border); background: #fff; border-radius: 999px;
+  padding: 3px 10px; font-size: 14px; cursor: pointer; transition: all 0.15s;
+}
+.feedback-btn:hover { border-color: var(--gnu-blue); background: #eaf8fd; }
+.feedback-btn:disabled { opacity: 0.5; cursor: default; }
+.feedback-thanks { font-size: 12.5px; color: var(--gnu-blue-deep); }
+.followup-list { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 2px 0; }
+.followup-label { font-size: 12.5px; color: var(--color-text-sub); margin-right: 4px; }
+.followup-chip {
+  border: 1px solid var(--gnu-silver); background: #fff; color: var(--gnu-grey);
+  border-radius: 999px; padding: 6px 12px; font-size: 13px; cursor: pointer; transition: all 0.15s;
+}
+.followup-chip:hover { border-color: var(--gnu-blue); color: var(--gnu-blue-deep); background: #eaf8fd; }
+.popular-box {
+  background: var(--color-card); border: 1px solid var(--color-border); border-radius: var(--radius);
+  padding: 14px 16px; box-shadow: var(--shadow);
+}
+.popular-label { font-size: 13px; font-weight: 700; color: var(--color-primary); margin-bottom: 8px; }

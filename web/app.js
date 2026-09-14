@@ -401,12 +401,28 @@ function replaceLoadingMessage(id, data, query) {
       </div>`;
   }
 
+  // [T25] 👍/👎 피드백 (답변이 있을 때만) + 이어서 물어볼 질문 제안
+  const chunkIds = (data.results || []).map((r) => r.chunk_id);
+  const feedbackHtml = data.used_llm ? `
+      <div class="feedback-bar" data-question="${escapeHtml(query)}" data-chunks="${escapeHtml(chunkIds.join(","))}" data-preview="${escapeHtml((data.answer || "").slice(0, 200))}">
+        <span>이 답변이 도움이 되었나요?</span>
+        <button type="button" class="feedback-btn" data-vote="up" aria-label="도움이 됐어요">👍</button>
+        <button type="button" class="feedback-btn" data-vote="down" aria-label="도움이 안 됐어요">👎</button>
+      </div>` : "";
+  const followupHtml = (data.followups && data.followups.length) ? `
+      <div class="followup-list">
+        <span class="followup-label">이어서 물어보기</span>
+        ${data.followups.map((q) => `<button type="button" class="followup-chip" data-q="${escapeHtml(q)}">${escapeHtml(q)}</button>`).join("")}
+      </div>` : "";
+
   node.innerHTML = `
     <div class="bubble ai-bubble">
       <div class="ai-answer-text">${answerHtml}</div>
       <div class="ai-disclaimer">${AI_DISCLAIMER}</div>
+      ${feedbackHtml}
     </div>
     ${sourcesHtml}
+    ${followupHtml}
     ${fallbackHtml}`;
 }
 
@@ -422,8 +438,33 @@ function replaceLoadingMessageWithError(id, message, query) {
     </div>`;
 }
 
-// 채팅 영역 클릭: 근거 카드 미리보기 / 추천 검색어 / 일반 검색 전환 버튼
-el.chatArea && el.chatArea.addEventListener("click", (e) => {
+// 채팅 영역 클릭: 근거 카드 미리보기 / 추천 검색어 / 일반 검색 전환 버튼 / [T25] 피드백 · 후속 질문
+el.chatArea && el.chatArea.addEventListener("click", async (e) => {
+  const fbBtn = e.target.closest(".feedback-btn");
+  if (fbBtn) {
+    const bar = fbBtn.closest(".feedback-bar");
+    const vote = fbBtn.dataset.vote;
+    bar.querySelectorAll(".feedback-btn").forEach((b) => (b.disabled = true));
+    try {
+      await apiPost("/api/feedback", {
+        question: bar.dataset.question, vote,
+        answer_preview: bar.dataset.preview,
+        chunk_ids: (bar.dataset.chunks || "").split(",").filter(Boolean),
+      });
+      bar.innerHTML = vote === "up"
+        ? `<span class="feedback-thanks">👍 감사합니다. 의견이 반영됩니다.</span>`
+        : `<span class="feedback-thanks">👎 의견 감사합니다. 담당자가 답변 품질을 점검합니다. 원문은 아래 근거 조항에서 확인하세요.</span>`;
+    } catch (_) {
+      bar.innerHTML = `<span class="feedback-thanks">피드백 저장에 실패했습니다. 잠시 후 다시 시도해주세요.</span>`;
+    }
+    return;
+  }
+  const fuChip = e.target.closest(".followup-chip");
+  if (fuChip) {
+    el.askInput.value = "";
+    askQuestion(fuChip.dataset.q);
+    return;
+  }
   const switchBtn = e.target.closest(".btn-switch-search");
   if (switchBtn) {
     const q = switchBtn.dataset.q || state.lastAskQuery || "";
@@ -592,12 +633,59 @@ async function loadModalContent() {
       el.modalBadge.className = "badge " + badgeForSource(r.source);
       el.modalTitle.textContent = r.name;
       el.modalMeta.textContent = `${r.category}${r.status === "폐지" ? " · ⚠️ 폐지된 규정" : ""}${r.enforce_date ? ` · 시행 ${r.enforce_date}${r.revision_type ? "(" + r.revision_type + ")" : ""}` : ""}${r.rule_no ? ` · ${r.rule_no}` : ""} · 담당부서: ${formatDeptText(r.department, r.contact)}`;
-      el.modalBody.textContent = r.full_text;
       el.modalSiteLink.href = r.source_url;
+      // [T25] 규정 전문에서 "지금 보고 있던 조항"을 하이라이트하고 그 위치로 자동 스크롤한다.
+      // (AI 답변의 근거 조항을 전문 안에서 바로 확인할 수 있게 — 이전엔 전문을 직접 뒤져야 했다)
+      renderFullTextWithHighlight(r.full_text, modalState.chunkId);
     }
   } catch (err) {
     el.modalBody.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div>${escapeHtml(err.message)}</div>`;
   }
+}
+
+// [T25] 전문 텍스트 안에서 해당 조항 구간을 찾아 <mark>로 감싸고 스크롤한다.
+// 조항 구간 = 청크의 article 라벨("제31조")이 줄 첫머리에 나오는 곳부터 다음 "제N조"(또는 부칙/별표) 직전까지.
+async function renderFullTextWithHighlight(fullText, chunkId) {
+  let article = "", clauseText = "";
+  try {
+    if (chunkId) {
+      const c = await apiGet(`/api/chunks/${encodeURIComponent(chunkId)}`);
+      article = (c.article || "").trim();
+      clauseText = (c.text || "").trim();
+    }
+  } catch (_) { /* 하이라이트는 부가 기능 — 실패해도 전문은 그대로 보여준다 */ }
+
+  let start = -1, end = -1;
+  if (article && /^제\s*\d+조/.test(article)) {
+    const artNum = article.replace(/\s+/g, "");
+    // 줄 시작의 "제31조(" 또는 "제31조 " (제31조의2 같은 변형은 문자열 일치로 처리)
+    const re = new RegExp("(^|\\n)\\s*" + artNum.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?![\\d의])", "g");
+    const m = re.exec(fullText);
+    if (m) {
+      start = m.index + m[1].length;
+      const nextRe = /\n\s*(제\s*\d+조|부\s*칙|별\s*표|별\s*지)/g;
+      nextRe.lastIndex = start + artNum.length;
+      const n = nextRe.exec(fullText);
+      end = n ? n.index : fullText.length;
+    }
+  }
+  if (start < 0 && clauseText) {
+    // 조항 라벨로 못 찾으면 청크 본문 앞 40자로 위치를 찾는다 (별표·부칙 등)
+    const probe = clauseText.slice(0, 40);
+    const idx = fullText.indexOf(probe);
+    if (idx >= 0) { start = idx; end = Math.min(fullText.length, idx + clauseText.length); }
+  }
+
+  if (start < 0) {
+    el.modalBody.textContent = fullText;
+    return;
+  }
+  el.modalBody.innerHTML =
+    escapeHtml(fullText.slice(0, start)) +
+    `<mark class="modal-target" id="modal-target">${escapeHtml(fullText.slice(start, end))}</mark>` +
+    escapeHtml(fullText.slice(end));
+  const target = document.getElementById("modal-target");
+  if (target) requestAnimationFrame(() => target.scrollIntoView({ block: "start", behavior: "smooth" }));
 }
 
 function closeModal() {
@@ -665,9 +753,27 @@ runSearch = async function (query) {  // eslint-disable-line no-func-assign
   if (!_restoringFromUrl) syncUrlFromState(query, true);
 };
 
+// ===================== [T25] 첫 화면: 많이 찾는 검색어 =====================
+// 검색 전 빈 결과 영역에 로그 기반 인기 검색어 칩을 보여준다 (클릭 → 바로 검색).
+async function renderPopular() {
+  if (state.lastQuery || (window.location.search && new URLSearchParams(window.location.search).get("q"))) return;
+  try {
+    const data = await apiGet("/api/popular", { limit: 8 });
+    if (!data.queries || !data.queries.length || state.lastQuery) return;
+    el.statusArea.innerHTML = `
+      <div class="popular-box">
+        <div class="popular-label">🔥 많이 찾는 검색어</div>
+        <div class="suggest-list">
+          ${data.queries.map((q) => `<button type="button" class="suggest-chip" data-q="${escapeHtml(q)}">${escapeHtml(q)}</button>`).join("")}
+        </div>
+      </div>`;
+  } catch (_) { /* 부가 기능 — 실패해도 조용히 넘어간다 */ }
+}
+
 // ===================== 초기화 =====================
 loadFilters().then(() => {
   // 카테고리 칩이 채워진 뒤에 URL 상태를 반영해야 칩 선택 표시가 맞는다
   if (window.location.search) applyStateFromUrl();
+  renderPopular();
 });
 el.input.focus();

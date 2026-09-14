@@ -243,6 +243,22 @@ python scripts/evaluate_academic.py --llm    # AI 답변까지 점검 — 외부
 강도(감점 비율)는 `scripts/search_engine.py` 상단 상수(`NON_ARTICLE_PENALTY`, `GRAD_PENALTY`,
 `ATTACHED_SCHOOL_PENALTY`)에 있으며, 바꾼 뒤에는 4장의 점검 스크립트 3개로 확인하세요.
 
+### 4-4. 사용자 피드백(👍👎)과 "많이 찾는 검색어"
+
+- AI 답변 아래 **👍 / 👎** 버튼을 누르면 질문·투표·근거 조항 번호가 `data/rag_logs/feedback-YYYY-MM-DD.jsonl`에
+  기록됩니다(누가 눌렀는지는 저장하지 않음). **👎가 반복되는 질문**은 답변 품질 점검 대상이니,
+  월 1회 정도 아래처럼 확인해 개발 담당자에게 전달하세요.
+
+  ```powershell
+  Get-Content data\rag_logs\feedback-*.jsonl | Select-String '"vote": "down"'
+  ```
+
+- 첫 화면의 **🔥 많이 찾는 검색어**는 AI 질문 로그에서 2회 이상 물어본 질문을 자동 집계한 것입니다
+  (5분마다 갱신, 로그가 적을 땐 기본 목록으로 채움). 별도 관리가 필요 없습니다.
+- AI 답변 아래 **"이어서 물어보기"** 칩은 근거 조항과 같은 장(章)에 있는 이웃 조항 제목으로 자동
+  생성되며, 미리보기의 **"규정 전문"** 탭은 지금 보던 조항을 파란 배경으로 표시하고 그 위치로
+  자동 이동합니다.
+
 ---
 
 ## 5. 담당부서·연락처가 맞는지 확인하는 방법

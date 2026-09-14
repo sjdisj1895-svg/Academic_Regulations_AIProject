@@ -149,6 +149,16 @@ class AskResponse(BaseModel):
     related_regulations: list[str]
     took_ms: float
     suggestions: list[str] = []
+    followups: list[str] = []  # [T25] 이어서 물어볼 만한 질문 제안 (근거 조항의 같은 장(章)에서 생성)
+
+
+class FeedbackRequest(BaseModel):
+    """[T25] AI 답변 👍/👎 피드백. 질문자 식별 정보는 받지 않는다."""
+    question: str
+    vote: str                 # "up" | "down"
+    answer_preview: str = ""
+    chunk_ids: list[str] = []
+    comment: str = ""
 
 
 class RegulationDetailResponse(BaseModel):
@@ -365,7 +375,121 @@ def ask(req: AskRequest):
         "related_regulations": search_result["related_regulations"],
         "took_ms": took_ms,
         "suggestions": [] if found else ASK_SUGGESTIONS,
+        "followups": _followup_questions(search_result["results"], req.question) if found else [],
     }
+
+
+# ---------------------------------------------------------- [T25] 후속 질문 제안 · 피드백 · 인기 검색어
+_FOLLOWUP_SKIP_TITLES = {"목적", "정의", "적용범위", "적용 범위", "다른 규정과의 관계", "시행일", "위임"}
+
+
+def _followup_questions(results: list, question: str, limit: int = 3) -> list:
+    """근거 조항과 같은 규정·같은 장(章)에 속한 이웃 조항의 제목으로 이어서 물어볼 질문을 만든다.
+    LLM 호출 없이 청크 메타데이터만 사용하므로 비용·지연이 없다. (예: 근거가 '학사관리 규정
+    제31조(휴학)'이면 같은 장의 '복학시기', '재입학' → "복학시기은(는) 어떻게 되나요?")"""
+    engine = get_engine()
+    used_titles = set()
+    for r in results:
+        if r.get("article_title"):
+            used_titles.add(r["article_title"])
+    out, seen = [], set()
+    for r in results[:2]:  # 상위 2개 근거 조항의 이웃만
+        base = engine.get_chunk(r["chunk_id"])
+        if not base or not base.get("chapter"):
+            continue
+        for c in engine.chunks:
+            if c["reg_id"] != base["reg_id"] or c.get("chapter") != base.get("chapter"):
+                continue
+            t = (c.get("article_title") or "").strip()
+            if not t or t in used_titles or t in seen or t in _FOLLOWUP_SKIP_TITLES or t in question:
+                continue
+            if not c["article"].startswith("제"):
+                continue
+            seen.add(t)
+            out.append(f"{t}{_topic_particle(t)} 어떻게 되나요?")
+            if len(out) >= limit:
+                return out
+    return out
+
+
+def _topic_particle(word: str) -> str:
+    """한글 마지막 글자의 받침 유무로 '은'/'는'을 고른다 (복학→복학은, 복학시기→복학시기는)."""
+    if not word:
+        return "은"
+    ch = word.strip()[-1]
+    code = ord(ch)
+    if 0xAC00 <= code <= 0xD7A3:
+        return "은" if (code - 0xAC00) % 28 else "는"
+    return "은"
+
+
+FEEDBACK_DIR = LOGS_DIR
+
+
+@app.post("/api/feedback", tags=["AI 질의응답"], summary="[T25] AI 답변 👍/👎 피드백 저장")
+def feedback(req: FeedbackRequest):
+    if req.vote not in ("up", "down"):
+        raise HTTPException(status_code=400, detail="vote는 up 또는 down 이어야 합니다.")
+    try:
+        os.makedirs(FEEDBACK_DIR, exist_ok=True)
+        day = datetime.now().strftime("%Y-%m-%d")
+        path = os.path.join(FEEDBACK_DIR, f"feedback-{day}.jsonl")
+        entry = {
+            "timestamp": datetime.now().isoformat(timespec="seconds"),
+            "question": req.question[:500],
+            "vote": req.vote,
+            "answer_preview": req.answer_preview[:300],
+            "chunk_ids": req.chunk_ids[:10],
+            "comment": req.comment[:500],
+        }
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception as e:
+        print(f"[RAG] 경고: 피드백 기록 실패 ({e})")
+        raise HTTPException(status_code=500, detail="피드백 저장에 실패했습니다.")
+    return {"ok": True}
+
+
+# 로그가 아직 적을 때를 위한 기본 인기 검색어 (실사용 로그가 쌓이면 자동으로 로그 기반으로 대체됨)
+POPULAR_DEFAULTS = ["휴학", "복학", "장학금", "등록금", "수강신청", "졸업 요건", "연구비", "전과", "성적 이의신청", "마이크로디그리"]
+_popular_cache = {"at": 0.0, "items": []}
+
+
+@app.get("/api/popular", tags=["검색"], summary="[T25] 많이 찾는 검색어·질문 (로그 기반, 5분 캐시)")
+def popular(limit: int = Query(8, ge=1, le=20)):
+    """data/rag_logs/*.jsonl의 질문을 정규화해 빈도순으로 집계한다. 거절(refused)·오류 로그는 제외.
+    로그가 적으면 기본 목록으로 채운다. 5분간 캐시."""
+    now = time.time()
+    if now - _popular_cache["at"] < 300 and _popular_cache["items"]:
+        return {"queries": _popular_cache["items"][:limit]}
+    counts = {}
+    try:
+        if os.path.isdir(LOGS_DIR):
+            for fn in sorted(os.listdir(LOGS_DIR)):
+                if not fn.endswith(".jsonl") or fn.startswith("feedback-"):
+                    continue
+                with open(os.path.join(LOGS_DIR, fn), encoding="utf-8") as f:
+                    for line in f:
+                        try:
+                            e = json.loads(line)
+                        except Exception:
+                            continue
+                        if e.get("status") not in ("answered",):
+                            continue
+                        q = re.sub(r"\s+", " ", (e.get("question") or "").strip()).rstrip("?？.!")
+                        if 2 <= len(q) <= 40:
+                            counts[q] = counts.get(q, 0) + 1
+    except Exception as e:
+        print(f"[서버] 인기 검색어 집계 실패 ({e})")
+    # 2회 이상 물어본 질문만 (1회짜리 시험용·오타 질문 제외), 명백한 테스트 문구 제외
+    stop = ("테스트", "test", "asdf", "ㅁㄴㅇ")
+    items = [q for q, n in sorted(counts.items(), key=lambda x: -x[1])
+             if n >= 2 and not any(s in q.lower() for s in stop)]
+    for d in POPULAR_DEFAULTS:
+        if d not in items:
+            items.append(d)
+    _popular_cache.update(at=now, items=items)
+    return {"queries": items[:limit]}
 
 
 @app.get("/api/chunks/{chunk_id:path}", response_model=ChunkDetailResponse,
