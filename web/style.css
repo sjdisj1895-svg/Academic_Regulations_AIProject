@@ -844,3 +844,129 @@ body { padding-bottom: var(--footer-h); }
   body { padding-bottom: 0 !important; }
   .site-footer { position: static !important; box-shadow: none; }
 }
+
+/* =====================================================================
+   [T32] 디자인 v2 — ① 타이포·간격 체계  ② 카드 재설계(규정 단위 묶음)  ④ 조용한 필터
+   (목업 docs_mockups/design_v2.html 을 실제 화면에 적용. 아래 규칙은 파일 끝에 두어 앞선 규칙보다 우선)
+   ===================================================================== */
+:root{
+  --fs-h:20px; --fs-title:16px; --fs-body:14.5px; --fs-meta:12.5px;
+  --blue-10:rgba(0,158,219,.10); --blue-16:rgba(0,158,219,.16);
+  --color-bg:#f5f7f9; --color-border:#e6eaed;
+}
+body{ line-height:1.6; }
+
+/* 히어로: 통계 한 줄 */
+.site-header{ padding:36px 16px 84px; }
+.brand-title{ font-size:26px; }
+.hero-stats{ margin-top:10px; font-size:13.5px; opacity:.95; }
+.hero-stats b{ font-weight:700; }
+.hero-stats .dot{ margin:0 10px; opacity:.7; }
+
+/* 검색 카드·검색창 */
+.container{ margin-top:-52px; }
+.search-section{ border-radius:20px; box-shadow:0 12px 32px rgba(67,82,90,.12); padding:24px 24px 16px; }
+.search-box{ height:56px; }
+#search-input, #ask-input{ font-size:16px; padding:0 22px; }
+#search-btn, #ask-btn{ width:64px; height:100%; }
+
+/* ④ 조용한 필터 */
+.filters{ margin-top:16px; padding-top:0; border-top:0; gap:0; display:block; }
+.filter-top{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.seg{ display:inline-flex; background:var(--color-bg); border-radius:999px; padding:3px; gap:0; }
+.seg .chip{ border:0; background:transparent; color:var(--color-text-sub); padding:7px 16px; border-radius:999px; font-size:13.5px; font-weight:600; box-shadow:none; }
+.seg .chip:hover{ background:transparent; color:var(--gnu-grey); }
+.seg .chip.active{ background:#fff; color:var(--gnu-grey); box-shadow:0 1px 4px rgba(67,82,90,.15); }
+.more{ margin-left:auto; border:1px solid var(--color-border); background:#fff; color:var(--color-text-sub); border-radius:999px; padding:7px 14px; font-size:13px; cursor:pointer; display:inline-flex; gap:6px; align-items:center; font-family:inherit; }
+.more svg{ width:15px; height:15px; }
+.more:hover, .more.open{ border-color:var(--gnu-blue); color:var(--gnu-blue-deep); background:var(--blue-10); }
+.subcats{ display:flex; gap:6px; flex-wrap:wrap; margin-top:12px; padding-top:12px; border-top:1px dashed var(--color-border); align-items:center; }
+.subcats .chip-subgroup{ gap:6px; }
+.subcats .chip-subgroup + .chip-subgroup{ margin-left:10px; padding-left:0; border-left:0; }
+.subcats .chip-subgroup-label{ font-size:12px; font-weight:700; color:var(--color-text-sub); margin-right:2px; }
+.subcats .chip.cat{ border:1px solid var(--color-border); background:#fff; color:var(--color-text-sub); padding:5px 12px; border-radius:999px; font-size:12.5px; font-weight:500; box-shadow:none; }
+.subcats .chip.cat:hover{ border-color:var(--gnu-blue); color:var(--gnu-blue-deep); background:#fff; }
+.subcats .chip.cat.active{ border-color:var(--gnu-blue); color:var(--gnu-blue-deep); background:var(--blue-10); font-weight:700; }
+.more-panel{ display:flex; flex-wrap:wrap; gap:10px 18px; align-items:center; margin-top:12px; padding:12px 14px; background:var(--color-bg); border-radius:12px; }
+.more-panel.hidden{ display:none; }
+.more-panel .kbd-hint{ margin-left:auto; }
+.applied{ display:flex; gap:6px; flex-wrap:wrap; margin-top:12px; font-size:12.5px; color:var(--color-text-sub); align-items:center; }
+.applied.hidden{ display:none; }
+.applied-label{ margin-right:2px; }
+.tag{ display:inline-flex; align-items:center; gap:6px; background:var(--blue-10); color:var(--gnu-blue-deep); border:0; border-radius:999px; padding:4px 10px; font-weight:600; font-size:12.5px; cursor:pointer; font-family:inherit; }
+.tag i{ font-style:normal; opacity:.6; }
+.tag:hover{ background:var(--blue-16); }
+.tag.clear{ background:transparent; color:var(--color-text-sub); text-decoration:underline; padding:4px 6px; }
+
+/* 결과 요약: 통계 칩 */
+.status-area{ margin:24px 4px 12px; }
+.summary{ display:flex; align-items:center; gap:8px; font-size:var(--fs-meta); color:var(--color-text-sub); flex-wrap:wrap; }
+.summary .k{ background:#fff; border:1px solid var(--color-border); border-radius:999px; padding:3px 10px; }
+.summary .k b{ color:var(--gnu-grey); }
+
+/* ② 규정 단위 묶음 + 카드 */
+.results{ gap:12px; }
+.group{ background:var(--color-card); border:1px solid var(--color-border); border-radius:14px; overflow:hidden; box-shadow:0 1px 6px rgba(67,82,90,.06); }
+.group-h{ display:flex; align-items:center; gap:10px; padding:12px 18px; background:#fbfcfd; border-bottom:1px solid var(--color-border); font-size:13px; color:var(--color-text-sub); flex-wrap:wrap; }
+.group-h b{ color:var(--gnu-grey); font-size:var(--fs-title); font-weight:700; }
+.group-h .gmeta .st{ color:#b23a3a; font-weight:700; }
+.group-h .n{ margin-left:auto; background:var(--blue-10); color:var(--gnu-blue-deep); border-radius:999px; padding:2px 10px; font-weight:700; font-size:12px; white-space:nowrap; }
+.group.repealed .group-h{ background:#fbf6f6; }
+
+.result-card.v2{ border-radius:0; box-shadow:none; border:0; border-top:1px solid var(--color-border); padding:18px 20px 16px 22px; background:#fff; transform:none; }
+.group .result-card.v2:first-of-type{ border-top:0; }
+.result-card.v2::before{ left:0; top:14px; bottom:14px; width:4px; border-radius:0 4px 4px 0; background:var(--gnu-blue); opacity:1; }
+.result-card.v2.foundation::before{ background:var(--gnu-gold); }
+.result-card.v2.repealed::before{ background:#b23a3a; }
+.result-card.v2:hover{ background:#fbfdff; box-shadow:none; transform:none; border-color:var(--color-border); }
+.result-card.v2:focus-visible{ outline-offset:-3px; box-shadow:none; }
+.result-card.v2 .row1{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+.result-card.v2 .name{ font-size:var(--fs-title); font-weight:700; color:var(--gnu-grey); }
+.result-card.v2 .art{ font-size:var(--fs-body); font-weight:500; color:var(--gnu-blue-deep); max-width:60%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.result-card.v2 .st{ color:#b23a3a; font-weight:700; font-size:var(--fs-meta); }
+.result-card.v2 .date{ margin-left:auto; font-size:var(--fs-meta); color:var(--color-text-sub); white-space:nowrap; }
+.result-card.v2 .body{ margin-top:8px; font-size:var(--fs-body); color:var(--color-text); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.65; }
+.result-card.v2 .row3{ display:flex; align-items:center; gap:14px; margin-top:10px; font-size:var(--fs-meta); color:var(--color-text-sub); flex-wrap:wrap; }
+.result-card.v2 .dept b{ color:var(--gnu-grey); font-weight:600; }
+.result-card.v2 .acts{ margin-left:auto; display:flex; gap:14px; }
+.result-card.v2 .acts a, .result-card.v2 .acts .linklike{ font-weight:600; color:var(--gnu-blue-deep); background:none; border:0; padding:0; font-size:var(--fs-meta); cursor:pointer; font-family:inherit; }
+.result-card.v2 .acts a:hover, .result-card.v2 .acts .linklike:hover{ text-decoration:underline; }
+/* 하이라이트: 노란 형광펜 → 연한 파란 배경 + 파란 밑줄 */
+mark, .result-card.v2 mark, .group-h mark{ background:var(--blue-16); color:inherit; font-weight:700; border-radius:3px; padding:0 2px; box-shadow:inset 0 -2px 0 var(--gnu-blue); }
+
+/* 스켈레톤 */
+.skel{ height:14px; border-radius:6px; background:linear-gradient(90deg,#eef1f3,#f7f9fa,#eef1f3); background-size:200% 100%; animation:sh 1.2s infinite; display:inline-block; }
+.summary .k.skel{ height:22px; border:0; }
+@keyframes sh{ 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+.result-card.skeleton{ border-top:1px solid var(--color-border); padding:18px 20px 16px 22px; }
+.result-card.skeleton::before{ display:none; }
+.result-card.skeleton .skel{ display:block; }
+
+/* AI 탭 근거 카드(그룹 없이 단독)에는 규정명이 보여야 하므로 data-name을 위에 표시 */
+.ask-sources .result-card.v2::after{ content:attr(data-name); display:block; order:-1; font-size:var(--fs-meta); color:var(--color-text-sub); margin-bottom:4px; }
+.ask-sources .result-card.v2{ display:flex; flex-direction:column; border:1px solid var(--color-border); border-radius:12px; }
+
+.to-top{ font-size:20px; font-weight:700; }
+
+@media (max-width:600px){
+  .site-header{ padding:28px 14px 72px; }
+  .brand-title{ font-size:19px; }
+  .hero-stats{ font-size:12px; } .hero-stats .dot{ margin:0 6px; }
+  .search-section{ padding:16px 14px 12px; border-radius:16px; }
+  .search-box{ height:50px; } #search-input, #ask-input{ font-size:15px; padding:0 16px; }
+  .seg .chip{ padding:6px 12px; font-size:12.5px; }
+  .more span{ display:none; } .more{ padding:7px 10px; }
+  .subcats .chip-subgroup{ width:auto; } .subcats .chip-subgroup + .chip-subgroup{ margin-left:0; margin-top:0; }
+  .more-panel .kbd-hint{ display:none; }
+  .result-card.v2{ padding:14px 14px 12px 18px; }
+  .result-card.v2 .art{ max-width:100%; white-space:normal; }
+  .result-card.v2 .date{ margin-left:0; width:100%; order:10; }
+  .result-card.v2 .row3 .acts{ margin-left:0; width:100%; justify-content:space-between; }
+  .group-h{ padding:10px 14px; } .group-h b{ font-size:15px; }
+}
+/* [T32] 결과 컨테이너는 검색 카드의 음수 여백을 상속하지 않음 (v2 .container 규칙보다 뒤에 두어 우선) */
+.container-scroll{ margin-top:0; }
+/* [T32] v2 카드의 상위 조직 표기 "(교무처)" — 기존 .card-dept 규칙을 .dept 에도 적용 */
+.result-card.v2 .dept .dept-parent{ color:var(--color-text-sub); font-weight:400; }
+.result-card.v2 .dept .dept-parent::before{ content:"("; } .result-card.v2 .dept .dept-parent::after{ content:")"; }
+.result-card.v2 .dept a.dept-tel{ color:var(--gnu-blue-deep); text-decoration:none; }

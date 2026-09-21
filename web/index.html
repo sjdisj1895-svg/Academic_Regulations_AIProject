@@ -17,7 +17,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" as="style" crossorigin
       href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
-<link rel="stylesheet" href="style.css?v=28">
+<link rel="stylesheet" href="style.css?v=29">
 </head>
 <body>
 
@@ -42,7 +42,8 @@
       <img class="brand-emblem" src="assets/gnu_emblem_b.png" alt="경상국립대학교 엠블럼">
       <span class="brand-title">경상국립대학교 규정 통합 검색</span>
     </div>
-    <div class="brand-sub">대학 규정 + 산학협력단 규정을 한 번에 검색하세요</div>
+    <!-- [T32] 부제 → 숫자 한 줄 (JS가 /api/filters 값으로 채움) -->
+    <div class="brand-sub hero-stats" id="hero-stats">대학 규정 + 산학협력단 규정을 한 번에 검색하세요</div>
   </div>
 </header>
 
@@ -70,33 +71,28 @@
       </button>
     </form>
 
-    <!-- 필터 영역 (검색/질문 모드 공통) -->
+    <!-- [T32] 조용한 필터: 출처 세그먼트 + '필터 더보기' / 카테고리 한 줄 / 적용 중 태그 -->
     <div class="filters">
-      <div class="filter-group">
-        <span class="filter-label">출처</span>
-        <div class="chip-group" id="source-filters">
+      <div class="filter-top">
+        <div class="seg" id="source-filters" role="group" aria-label="출처">
           <button type="button" class="chip active" data-value="">전체</button>
           <button type="button" class="chip" data-value="대학">대학</button>
           <button type="button" class="chip" data-value="산학협력단">산학협력단</button>
         </div>
+        <button type="button" class="more" id="filter-more" aria-expanded="false" aria-controls="filter-more-panel" title="폐지 포함 · 최근 1년 · 정렬">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg><span>필터 더보기</span>
+        </button>
       </div>
-      <div class="filter-group">
-        <span class="filter-label">카테고리</span>
-        <div class="chip-group" id="category-filters">
-          <button type="button" class="chip active" data-value="">전체</button>
-          <!-- 자바스크립트로 /api/filters 결과를 채워 넣음 -->
-        </div>
+      <div class="subcats" id="category-filters" role="group" aria-label="카테고리">
+        <!-- 자바스크립트로 /api/filters 결과를 채워 넣음 -->
       </div>
-      <!-- [T20] 폐지 규정은 기본 제외. 개정 연혁 확인 등이 필요할 때만 켠다 -->
-      <div class="filter-row-bottom">
+      <!-- [T20]/[T27] 폐지 포함 · 최근 1년 · 정렬 — '필터 더보기' 패널 안으로 -->
+      <div class="more-panel hidden" id="filter-more-panel">
         <label class="filter-toggle" for="include-repealed" title="폐지된 규정도 검색 결과에 포함합니다 (기본은 현행 규정만)">
-          <input type="checkbox" id="include-repealed">
-          <span>폐지된 규정도 포함</span>
+          <input type="checkbox" id="include-repealed"><span>폐지된 규정도 포함</span>
         </label>
-        <!-- [T27] 기간 필터 · 정렬 -->
         <label class="filter-toggle" for="recent-only" title="최근 1년 안에 시행·개정된 규정만 봅니다">
-          <input type="checkbox" id="recent-only">
-          <span>최근 1년 개정만</span>
+          <input type="checkbox" id="recent-only"><span>최근 1년 개정만</span>
         </label>
         <label class="filter-sort" for="sort-select">
           <span>정렬</span>
@@ -105,8 +101,9 @@
             <option value="date">시행일 최신순</option>
           </select>
         </label>
-        <span class="kbd-hint" title="키보드 단축키: / 검색창 · ↑↓ 결과 이동 · Enter 미리보기 · Esc 닫기">⌨ <kbd>/</kbd> 검색 · <kbd>↑↓</kbd> 이동 · <kbd>Enter</kbd> 미리보기</span>
+        <span class="kbd-hint" title="키보드 단축키: / 검색창 · ↑↓ 결과 이동 · Enter 미리보기 · Esc 닫기"><kbd>/</kbd> 검색 · <kbd>↑↓</kbd> 이동 · <kbd>Enter</kbd> 미리보기 · <kbd>Esc</kbd> 닫기</span>
       </div>
+      <div class="applied" id="applied-filters" aria-live="polite"></div>
     </div>
   </section>
 </div>
@@ -181,6 +178,6 @@
   <p class="footer-copy">52828 경상남도 진주시 진주대로 501 (가좌캠퍼스) · 대표전화 055-772-0114 · Copyright © Gyeongsang National University. All rights reserved.</p>
 </footer>
 
-<script src="app.js?v=28"></script>
+<script src="app.js?v=29"></script>
 </body>
 </html>

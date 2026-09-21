@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[목업] GNU 규정 통합 검색 — 디자인 v2 (1 타이포 · 2 카드 · 4 필터)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<style>
+/* ===== 토큰: GNU VI 4색만 사용 ===== */
+:root{
+  --blue:#009edb; --blue-deep:#007fb3; --blue-10:rgba(0,158,219,.10); --blue-16:rgba(0,158,219,.16);
+  --grey:#43525a; --grey-deep:#2f3a41; --silver:#bcbec0; --gold:#b3a177;
+  --bg:#f5f7f9; --card:#fff; --line:#e6eaed; --text:#2b353b; --sub:#5d6a71;
+  /* 1. 타이포 4단계 */
+  --fs-h:20px; --fs-title:16px; --fs-body:14.5px; --fs-meta:12.5px;
+  --lh:1.6; --r:14px;
+  --s1:8px; --s2:16px; --s3:24px; --s4:32px;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Pretendard Variable",Pretendard,"Malgun Gothic",sans-serif;background:var(--bg);color:var(--text);line-height:var(--lh);word-break:keep-all;overflow-wrap:anywhere}
+a{color:var(--blue-deep);text-decoration:none}
+
+/* ===== 브랜드 바 ===== */
+.brand-bar{background:#fff;border-bottom:1px solid var(--line)}
+.brand-bar-inner{max-width:920px;margin:0 auto;padding:12px var(--s2);display:flex;align-items:center;justify-content:space-between}
+.brand-bar img{height:40px}
+.brand-links{display:flex;gap:16px;font-size:var(--fs-meta)}
+.brand-links a{color:var(--sub)}
+
+/* ===== 히어로 (기존 톤 유지, 밀도만 조정) ===== */
+.hero{position:relative;background:linear-gradient(120deg,var(--blue-deep) 0%,var(--blue) 70%,#2bb3e6 130%);color:#fff;padding:36px var(--s2) 84px;text-align:center;overflow:hidden}
+.hero::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 85% -10%,rgba(255,255,255,.22),transparent 55%);pointer-events:none}
+.hero h1{margin:0;font-size:26px;font-weight:800;letter-spacing:-.02em;display:flex;align-items:center;justify-content:center;gap:12px}
+.hero h1 img{height:44px;width:44px;background:#fff;border-radius:50%;padding:3px;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.hero .stats{margin-top:10px;font-size:13.5px;opacity:.95;display:flex;justify-content:center;gap:14px;flex-wrap:wrap}
+.hero .stats b{font-weight:700}
+
+/* ===== 검색 카드 ===== */
+.wrap{max-width:920px;margin:-52px auto 0;padding:0 var(--s2);position:relative;z-index:2}
+.search-card{background:var(--card);border-radius:20px;box-shadow:0 12px 32px rgba(67,82,90,.12);padding:var(--s3) var(--s3) var(--s2);border:1px solid rgba(67,82,90,.05)}
+.search-box{display:flex;align-items:center;border:2px solid var(--blue);border-radius:999px;background:#fff;overflow:hidden;height:56px}
+.search-box input{flex:1;border:0;outline:0;padding:0 22px;font-size:16px;font-family:inherit;color:var(--text);min-width:0}
+.search-box button{border:0;background:var(--blue);color:#fff;width:64px;height:100%;cursor:pointer;display:grid;place-items:center}
+.search-box svg{width:22px;height:22px}
+
+/* 4. 조용한 필터: 출처 3칩 + ⚙ 더보기, 카테고리는 출처 선택 시 2단 */
+.filters{display:flex;align-items:center;gap:10px;margin-top:var(--s2);flex-wrap:wrap}
+.seg{display:inline-flex;background:var(--bg);border-radius:999px;padding:3px}
+.seg button{border:0;background:transparent;color:var(--sub);padding:7px 16px;border-radius:999px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit}
+.seg button.on{background:#fff;color:var(--grey);box-shadow:0 1px 4px rgba(67,82,90,.15)}
+.more{margin-left:auto;border:1px solid var(--line);background:#fff;color:var(--sub);border-radius:999px;padding:7px 14px;font-size:13px;cursor:pointer;display:inline-flex;gap:6px;align-items:center;font-family:inherit}
+.more svg{width:15px;height:15px}
+.subcats{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);font-size:13px}
+.subcats .lab{color:var(--sub);font-weight:700;font-size:12px;margin-right:4px;align-self:center}
+.cat{border:1px solid var(--line);background:#fff;color:var(--sub);padding:5px 12px;border-radius:999px;font-size:12.5px;cursor:pointer}
+.cat.on{border-color:var(--blue);color:var(--blue-deep);background:var(--blue-10);font-weight:700}
+.applied{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;font-size:12.5px;color:var(--sub);align-items:center}
+.tag{display:inline-flex;align-items:center;gap:6px;background:var(--blue-10);color:var(--blue-deep);border-radius:999px;padding:4px 10px;font-weight:600}
+.tag i{font-style:normal;opacity:.6}
+
+/* 결과 요약: 통계 칩 */
+.summary{display:flex;align-items:center;gap:8px;margin:var(--s3) 4px 12px;font-size:var(--fs-meta);color:var(--sub);flex-wrap:wrap}
+.summary .k{background:#fff;border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+.summary .k b{color:var(--grey)}
+
+/* ===== 2. 카드 재설계 ===== */
+.group{background:var(--card);border:1px solid var(--line);border-radius:var(--r);margin-bottom:12px;overflow:hidden;box-shadow:0 1px 6px rgba(67,82,90,.06)}
+.group-h{display:flex;align-items:center;gap:10px;padding:12px 18px;background:#fbfcfd;border-bottom:1px solid var(--line);font-size:13px;color:var(--sub)}
+.group-h b{color:var(--grey);font-size:var(--fs-title)}
+.group-h .n{margin-left:auto;background:var(--blue-10);color:var(--blue-deep);border-radius:999px;padding:2px 10px;font-weight:700;font-size:12px}
+.card{position:relative;padding:18px 20px 16px 22px;border-top:1px solid var(--line)}
+.card:first-of-type{border-top:0}
+.card::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:4px;border-radius:0 4px 4px 0;background:var(--blue)}
+.card.foundation::before{background:var(--gold)}
+.card:hover{background:#fbfdff}
+.row1{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.row1 .name{font-size:var(--fs-title);font-weight:700;color:var(--grey)}
+.row1 .art{font-size:var(--fs-body);font-weight:500;color:var(--blue-deep)}
+.row1 .date{margin-left:auto;font-size:var(--fs-meta);color:var(--sub);white-space:nowrap}
+.row2{font-size:var(--fs-meta);color:var(--sub);margin-top:2px}
+.row2 .st{color:#b23a3a;font-weight:700}
+.body{margin-top:8px;font-size:var(--fs-body);color:var(--text);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.body mark{background:var(--blue-16);color:inherit;font-weight:700;border-radius:3px;padding:0 2px;box-shadow:inset 0 -2px 0 var(--blue)}
+.row3{display:flex;align-items:center;gap:14px;margin-top:10px;font-size:var(--fs-meta);color:var(--sub);flex-wrap:wrap}
+.row3 .dept b{color:var(--grey);font-weight:600}
+.row3 .acts{margin-left:auto;display:flex;gap:14px}
+.row3 .acts a{font-weight:600}
+
+.skel{height:14px;border-radius:6px;background:linear-gradient(90deg,#eef1f3,#f7f9fa,#eef1f3);background-size:200% 100%;animation:sh 1.2s infinite}
+@keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* 푸터(고정, 압축) */
+.foot{position:fixed;left:0;right:0;bottom:0;background:var(--grey);color:rgba(255,255,255,.8);text-align:center;padding:8px 16px 9px;font-size:12px;box-shadow:0 -4px 16px rgba(67,82,90,.18)}
+.foot img{height:22px;vertical-align:middle;margin-right:10px}
+.foot b{color:#fff}.foot a{color:#7fd3f5}
+body{padding-bottom:86px}
+.totop{position:fixed;right:22px;bottom:100px;width:44px;height:44px;border-radius:50%;border:0;background:var(--blue);color:#fff;box-shadow:0 6px 18px rgba(0,158,219,.35);display:grid;place-items:center}
+.totop svg{width:20px;height:20px}
+
+@media (max-width:600px){
+  .brand-links{display:none}.brand-bar-inner{justify-content:center}.brand-bar img{height:32px}
+  .hero{padding:28px 14px 72px}.hero h1{font-size:19px}.hero h1 img{height:36px;width:36px}.hero .stats{font-size:12px;gap:8px}
+  .search-card{padding:16px 14px 12px;border-radius:16px}.search-box{height:50px}.search-box input{font-size:15px;padding:0 16px}
+  .seg button{padding:6px 12px;font-size:12.5px}.more span{display:none}
+  .row1 .date{margin-left:0;width:100%;order:10}
+  .row3 .acts{margin-left:0;width:100%;justify-content:space-between}
+  .foot img{display:none}.foot .data{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="brand-bar"><div class="brand-bar-inner">
+  <img src="../web/assets/gnu_emblem_combo_kr_en.png" alt="경상국립대학교">
+  <nav class="brand-links"><a href="#">학칙/규정/지침 원문 ↗</a><a href="#">국가법령정보센터 ↗</a></nav>
+</div></div>
+
+<header class="hero">
+  <h1><img src="../web/assets/gnu_emblem_b.png" alt="">경상국립대학교 규정 통합 검색</h1>
+  <div class="stats"><span>규정 <b>426</b>건</span><span>·</span><span>조항 <b>9,258</b>개</span><span>·</span><span>데이터 기준 <b>2026-09-04</b></span></div>
+</header>
+
+<main class="wrap">
+  <section class="search-card">
+    <div class="search-box">
+      <input value="휴학" placeholder="규정명, 조항 내용, 궁금한 문장 — 어떤 것으로든 검색하세요">
+      <button aria-label="검색"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
+    </div>
+
+    <!-- 4. 조용한 필터 -->
+    <div class="filters">
+      <div class="seg"><button class="on">전체</button><button>대학</button><button>산학협력단</button></div>
+      <button class="more"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg><span>필터 더보기</span></button>
+    </div>
+    <div class="subcats">
+      <span class="lab">대학</span><span class="cat">학칙</span><span class="cat on">규정</span><span class="cat">지침</span>
+      <span class="lab" style="margin-left:10px">산학협력단</span><span class="cat">제1편 직제·간접비</span><span class="cat">제2편 학술·연구지원</span><span class="cat">제3편 연구비·사업비</span><span class="cat">…</span>
+    </div>
+    <div class="applied">적용 중 <span class="tag">규정 <i>×</i></span><span class="tag">최근 1년 개정 <i>×</i></span><span class="tag">시행일 최신순 <i>×</i></span></div>
+  </section>
+
+  <div class="summary"><span class="k">‘휴학’ <b>15</b>건</span><span class="k"><b>0.05</b>초</span><span class="k">규정 <b>10</b>개</span><span class="k">현행만</span></div>
+
+  <!-- 2. 규정 단위 묶음 + 카드 -->
+  <div class="group">
+    <div class="group-h"><b>경상국립대학교 학사관리 규정</b><span>대학 · 규정</span><span class="n">4개 조항</span></div>
+    <article class="card">
+      <div class="row1"><span class="name">제31조(휴학)</span><span class="art">제7장 휴학, 복학, 재입학, 편입학, 유급, 퇴학 및 제적</span><span class="date">시행 2026-05-29 · 일부개정</span></div>
+      <div class="body">① <mark>휴학</mark>을 하려는 사람은 매 학기 수업일수 2분의 1이 경과되기 이전에 지도교수, 학과장의 상담을 받은 후 정보시스템으로 <mark>휴학</mark>을 신청하여 총장의 허가를 받아야 한다. 다만, 학칙 제53조의 <mark>휴학</mark>에 있어 병역복무, 질병, 1급 감염병, 임신·출산·육아의 경우에는 다음 각 호의 서류를 첨부하여야 한다.</div>
+      <div class="row3"><span class="dept"><b>교무과</b> (교무처) · 055-772-0102</span><span class="acts"><a href="#">미리보기</a><a href="#">원문 ↗</a></span></div>
+    </article>
+    <article class="card">
+      <div class="row1"><span class="name">제33조(복학)</span><span class="art">제7장</span><span class="date">시행 2026-05-29 · 일부개정</span></div>
+      <div class="body">① <mark>휴학</mark>한 사람은 <mark>휴학</mark>기간이 만료되기 전 학기 초 소정 기간 내에 복학하여야 한다. ② 복학은 <mark>휴학</mark> 당시의 학년·학기로 하며…</div>
+      <div class="row3"><span class="dept"><b>교무과</b> (교무처) · 055-772-0102</span><span class="acts"><a href="#">미리보기</a><a href="#">원문 ↗</a></span></div>
+    </article>
+    <article class="card">
+      <div class="row1"><span class="name">제34조(복학시기)</span><span class="art">제7장</span><span class="date">시행 2026-05-29 · 일부개정</span></div>
+      <div class="body">복학은 매 학기 개시일 전 소정 기간에 신청하여야 하며, <mark>휴학</mark> 사유가 소멸된 경우에는 …</div>
+      <div class="row3"><span class="dept"><b>교무과</b> (교무처) · 055-772-0102</span><span class="acts"><a href="#">미리보기</a><a href="#">원문 ↗</a></span></div>
+    </article>
+  </div>
+
+  <div class="group">
+    <div class="group-h"><b>경상국립대학교 학칙</b><span>대학 · 학칙</span><span class="n">2개 조항</span></div>
+    <article class="card">
+      <div class="row1"><span class="name">제53조(휴학)</span><span class="art">제7장 휴학, 복학, 재입학, 편입학, 유급, 퇴학 및 제적</span><span class="date">시행 2026-05-29 · 일부개정</span></div>
+      <div class="body">① 학생이 질병 또는 그 밖의 사유로 <mark>휴학</mark>하고자 할 때에는 총장의 허가를 받아야 한다. ② <mark>휴학</mark>기간은 통산 6학기(수업연한 6년인 학과는 8학기)를 초과할 수 없다. 다만 …</div>
+      <div class="row3"><span class="dept"><b>교무과</b> (교무처) · 055-772-0102</span><span class="acts"><a href="#">미리보기</a><a href="#">원문 ↗</a></span></div>
+    </article>
+  </div>
+
+  <div class="group">
+    <div class="group-h"><b>경상국립대학교 학적변동자 등의 등록금 처리지침</b><span>대학 · 지침</span><span class="n">1개 조항</span></div>
+    <article class="card">
+      <div class="row1"><span class="name">제3조 제7항(등록금의 징수)</span><span class="date">시행 2024-03-01 · 일부개정</span></div>
+      <div class="body">등록금을 납부한 후 <mark>휴학</mark>하는 경우 <mark>휴학</mark> 시점에 따라 등록금을 다음 각 호와 같이 처리한다. 1. 수업일수 4분의 1선 이전: 전액 …</div>
+      <div class="row3"><span class="dept"><b>재무과</b> (사무국) · 055-772-0394</span><span class="acts"><a href="#">미리보기</a><a href="#">원문 ↗</a></span></div>
+    </article>
+  </div>
+
+  <div class="group">
+    <div class="group-h"><b>경상국립대학교 산학협력단 취업규칙</b><span>산학협력단 · 제1편</span><span class="n">1개 조항</span></div>
+    <article class="card foundation">
+      <div class="row1"><span class="name">제19조(휴직)</span><span class="date">시행 2021-03-01 · 개정</span></div>
+      <div class="body">직원의 <mark>휴</mark>직·복직에 관한 사항은 … (산학협력단 규정은 좌측 바를 Gold로 구분)</div>
+      <div class="row3"><span class="dept"><b>산학연구과</b> · 055-772-0211</span><span class="acts"><a href="#">미리보기</a><a href="#">원문 ↗</a></span></div>
+    </article>
+  </div>
+
+  <!-- 로딩 스켈레톤 예시 -->
+  <div class="group" aria-hidden="true">
+    <div class="group-h"><div class="skel" style="width:220px"></div><span class="n" style="opacity:.4">…</span></div>
+    <article class="card"><div class="skel" style="width:40%"></div><div class="skel" style="width:96%;margin-top:10px"></div><div class="skel" style="width:70%;margin-top:6px"></div></article>
+  </div>
+</main>
+
+<button class="totop" aria-label="맨 위로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+<footer class="foot"><img src="../web/assets/gnu_emblem_combo_kr_en_white.png" alt=""><b>규정 원문 문의</b> 총무과 <a href="#">055-772-0334</a> · 산학연구과 <a href="#">055-772-0211</a><span class="data"> · 데이터 기준일 <b>2026-09-04</b> · 규정 426건</span><br><span style="opacity:.7">본 검색 서비스는 규정 원문을 AI로 재구성한 것으로, 법적 효력은 원본 규정을 따릅니다.</span></footer>
+</body>
+</html>

@@ -102,6 +102,7 @@ class SearchResultItem(BaseModel):
     rule_no: str = ""
     status: str = "현행"
     also_sources: list[str] = []  # [T24] 다른 출처에도 같은 규정이 있을 때 (예: ["산학협력단"])
+    chapter: str = ""             # [T32] 소속 장(章) 제목
     score: float
 
 
@@ -234,6 +235,7 @@ def get_filters():
         "categories_by_source": categories_by_source,
         "data_date": meta.get("data_date", ""),
         "total_regulations": meta.get("total_regulations", len({c["reg_id"] for c in engine.chunks})),
+        "total_chunks": meta.get("total_chunks", len(engine.chunks)),  # [T32] 히어로 통계 표시용
         # [T30] "AI에게 질문하기" 탭 노출 여부. 기능(/api/ask 등)은 그대로 살려두고 화면에서만 숨긴다.
         #       정식 오픈 시 서버 환경변수 GNU_AI_TAB_ENABLED=1 로 켠다 (기본: 숨김).
         "ai_tab_enabled": AI_TAB_ENABLED,

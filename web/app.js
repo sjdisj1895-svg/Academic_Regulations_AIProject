@@ -148,17 +148,25 @@ function renderCategoryChips() {
   const visible = new Set(groups.flatMap(([, cats]) => cats));
   if (state.category && !visible.has(state.category)) state.category = "";
 
-  const allChip = `<button type="button" class="chip ${state.category ? "" : "active"}" data-value="">전체</button>`;
+  // [T32] 한 줄 축소형: "대학 학칙 규정 지침 · 산학협력단 제1편… …" — '전체' 칩은 '적용 중' 태그의 ×로 대체
   const groupHtml = groups.map(([src, cats]) => {
     const cls = src === "대학" ? "univ" : "foundation";
     const label = groups.length > 1 ? `<span class="chip-subgroup-label ${cls}">${escapeHtml(src)}</span>` : "";
     const chips = cats.map((c) =>
-      `<button type="button" class="chip ${state.category === c ? "active" : ""}" data-value="${escapeHtml(c)}" title="${escapeHtml(c)}">${escapeHtml(categoryChipLabel(c))}</button>`
+      `<button type="button" class="chip cat ${state.category === c ? "active" : ""}" data-value="${escapeHtml(c)}" title="${escapeHtml(c)}" aria-pressed="${state.category === c}">${escapeHtml(categoryChipLabel(c))}</button>`
     ).join("");
     return `<div class="chip-subgroup">${label}${chips}</div>`;
   }).join("");
-  el.categoryFilters.innerHTML = allChip + groupHtml;
-  bindChipGroup(el.categoryFilters, "category");
+  el.categoryFilters.innerHTML = groupHtml;
+  // 카테고리 칩은 토글식: 선택된 칩을 다시 누르면 해제
+  el.categoryFilters.querySelectorAll(".chip").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      state.category = state.category === chip.dataset.value ? "" : chip.dataset.value;
+      renderCategoryChips();
+      renderApplied();
+      if (state.mode === "search" && state.lastQuery) runSearch(state.lastQuery);
+    });
+  });
 }
 
 function renderFooterData(data) {
@@ -170,6 +178,14 @@ function renderFooterData(data) {
   parts.push("원문 출처: 국가법령정보센터(law.go.kr) · 경상국립대학교 홈페이지 · 산학협력단 규정집");
   box.innerHTML = parts.join(" · ");
   if (typeof syncFooterHeight === "function") syncFooterHeight();  // [T31] 푸터 내용이 채워진 뒤 높이 재측정
+  // [T32] 히어로 부제를 숫자 한 줄로: "규정 426건 · 조항 9,258개 · 데이터 기준 2026-09-04"
+  const hero = document.getElementById("hero-stats");
+  if (hero && data.total_regulations) {
+    const bits = [`규정 <b>${Number(data.total_regulations).toLocaleString()}</b>건`];
+    if (data.total_chunks) bits.push(`조항 <b>${Number(data.total_chunks).toLocaleString()}</b>개`);
+    if (data.data_date) bits.push(`데이터 기준 <b>${escapeHtml(data.data_date)}</b>`);
+    hero.innerHTML = bits.join('<span class="dot">·</span>');
+  }
 }
 
 async function loadFilters() {
@@ -197,6 +213,7 @@ function bindChipGroup(container, stateKey) {
       state[stateKey] = chip.dataset.value;
       // 출처가 바뀌면 그 출처에 맞는 카테고리만 다시 그린다
       if (stateKey === "source") renderCategoryChips();
+      renderApplied();  // [T32] 적용 중 태그 갱신
       if (state.mode === "search" && state.lastQuery) runSearch(state.lastQuery);
     });
   });
@@ -580,12 +597,10 @@ el.chatArea && el.chatArea.addEventListener("click", async (e) => {
 
 // ===================== 화면 렌더링 =====================
 function showLoading() {
-  el.statusArea.innerHTML = `
-    <div class="loading-wrap">
-      <div class="loading-spinner"></div>
-      검색 중입니다...
-    </div>`;
-  el.results.innerHTML = "";
+  // [T32] 스피너 대신 카드 모양 스켈레톤 — 결과가 어떤 형태로 올지 미리 보여줘 대기 체감을 줄인다
+  el.statusArea.innerHTML = `<div class="summary"><span class="k skel" style="width:90px"></span><span class="k skel" style="width:60px"></span></div>`;
+  const sk = `<article class="result-card skeleton" aria-hidden="true"><div class="skel" style="width:38%"></div><div class="skel" style="width:96%;margin-top:10px"></div><div class="skel" style="width:72%;margin-top:6px"></div></article>`;
+  el.results.innerHTML = `<div class="group"><div class="group-h"><div class="skel" style="width:220px"></div></div>${sk}${sk}</div><div class="group"><div class="group-h"><div class="skel" style="width:160px"></div></div>${sk}</div>`;
 }
 
 function showError(message) {
@@ -621,21 +636,41 @@ function renderResults(data, query) {
     return;
   }
 
-  // [T29] 모바일에서는 연관 규정을 3개만 보여주고 "외 N개"로 축약 (긴 글 덩어리 방지). 규정명의
-  //       '경상국립대학교' 접두어도 줄여 한 줄에 더 많이 들어가게 한다. 전체 목록은 title로 제공.
-  const isMobile = window.matchMedia("(max-width: 600px)").matches;
+  // [T32] 결과 요약 → 통계 칩 ('휴학' 15건 · 0.05초 · 규정 10개 · 현행만/폐지 포함). 연관 규정 전체 목록은 툴팁.
   const rel = data.related_regulations;
-  const shown = isMobile ? rel.slice(0, 3) : rel;
-  const short = (n) => isMobile ? n.replace(/^경상국립대학교\s*/, "") : n;
-  const more = rel.length - shown.length;
+  const secs = (Number(data.took_ms) / 1000).toFixed(2);
   el.statusArea.innerHTML = `
-    <div class="status-summary" title="${escapeHtml(rel.join(", "))}">
-      '<b>${escapeHtml(query)}</b>' 검색 결과 <b>${data.total}</b>건
-      (${data.took_ms}ms) · 연관 규정
-      <b>${rel.length}</b>개: ${escapeHtml(shown.map(short).join(", "))}${more > 0 ? ` <span class="status-more">외 ${more}개</span>` : ""}
+    <div class="summary" title="연관 규정: ${escapeHtml(rel.join(", "))}">
+      <span class="k">‘${escapeHtml(query)}’ <b>${data.total}</b>건</span>
+      <span class="k">${data.cached ? "즉시 <b>(캐시)</b>" : `<b>${secs}</b>초`}</span>
+      <span class="k">규정 <b>${rel.length}</b>개</span>
+      <span class="k">${state.includeRepealed ? "폐지 포함" : "현행만"}</span>
+      ${state.sort === "date" ? `<span class="k">시행일 최신순</span>` : ""}
     </div>`;
 
-  el.results.innerHTML = data.results.map((r) => resultCardHtml(r, query)).join("");
+  // [T32] 규정 단위로 묶기: 같은 규정의 조항들을 하나의 그룹 카드에. 그룹 순서는 그 규정의 최고 관련도(첫 등장 순),
+  //       그룹 안은 관련도순(원래 순서) 유지.
+  const groups = [];
+  const byName = new Map();
+  data.results.forEach((r) => {
+    const key = r.name;
+    if (!byName.has(key)) { byName.set(key, { name: r.name, source: r.source, category: r.category, status: r.status, also: r.also_sources || [], items: [] }); groups.push(byName.get(key)); }
+    byName.get(key).items.push(r);
+  });
+  const SOURCE_ORDER = ["대학", "산학협력단"];
+  el.results.innerHTML = groups.map((g) => {
+    const shared = g.also.length ? [...new Set([g.source, ...g.also])].sort((a, b) => SOURCE_ORDER.indexOf(a) - SOURCE_ORDER.indexOf(b)).join("·") + " 공통" : g.source;
+    const repealed = g.status === "폐지";
+    return `
+      <section class="group ${g.source === "산학협력단" ? "foundation" : ""} ${repealed ? "repealed" : ""}">
+        <header class="group-h">
+          <b>${highlight(g.name, query)}</b>
+          <span class="gmeta">${escapeHtml(shared)} · ${escapeHtml(categoryChipLabel(g.category))}${repealed ? ` · <span class="st">폐지</span>` : ""}</span>
+          <span class="n">${g.items.length}개 조항</span>
+        </header>
+        ${g.items.map((r) => resultCardHtml(r, query)).join("")}
+      </section>`;
+  }).join("");
   // [T28] 새 검색 결과는 결과 요약 줄이 화면 위쪽에 오도록 페이지를 스크롤한다
   // (검색창이 화면 밖으로 밀려 있어도 결과부터 바로 보이게. 맨 위로는 TOP 버튼)
   const top = el.statusArea.getBoundingClientRect().top + window.scrollY - 12;
@@ -659,24 +694,27 @@ function resultCardHtml(r, query) {
   const dateText = r.enforce_date
     ? `시행 ${escapeHtml(r.enforce_date)}${r.revision_type ? ` · ${escapeHtml(r.revision_type)}` : ""}`
     : "";
+  // [T32] 카드 v2: 1행 조항 제목(굵게) · 장(章) · 시행일 / 2행 본문 2줄 / 3행 담당부서 · 액션 링크.
+  //       출처·카테고리·공통 배지는 그룹 헤더로 올라갔고, 출처 색은 좌측 바(대학 Blue / 산학협력단 Gold).
+  //       AI 탭의 근거 카드처럼 그룹 없이 단독으로 쓰일 때를 위해 규정명은 data 속성과 접근성 라벨에 유지.
+  const chapter = (r.chapter || "").replace(/\s+/g, " ").trim();
   return `
-    <article class="result-card ${repealed ? "repealed" : ""}" data-chunk-id="${escapeHtml(r.chunk_id)}" data-reg-id="${escapeHtml(r.reg_id)}"
+    <article class="result-card v2 ${r.source === "산학협력단" ? "foundation" : ""} ${repealed ? "repealed" : ""}"
+             data-chunk-id="${escapeHtml(r.chunk_id)}" data-reg-id="${escapeHtml(r.reg_id)}" data-name="${escapeHtml(r.name)}"
              tabindex="0" role="button" aria-label="${escapeHtml(r.name)} ${escapeHtml(locWithTitle)} 미리보기">
-      <div class="card-top">
-        <span class="badge ${badgeCls}">${escapeHtml(r.source)}</span>
-        <span class="badge category">${escapeHtml(r.category)}</span>
-        ${statusBadge}${sharedBadge}
-        <span class="card-location">${escapeHtml(locWithTitle)}</span>
-        ${dateText ? `<span class="card-date">${dateText}</span>` : ""}
+      <div class="row1">
+        <span class="name">${highlight(locWithTitle, query)}</span>
+        ${chapter ? `<span class="art" title="${escapeHtml(chapter)}">${escapeHtml(chapter)}</span>` : ""}
+        ${repealed ? `<span class="st" title="폐지된 규정입니다. 참고용으로만 보세요.">폐지</span>` : ""}
+        ${dateText ? `<span class="date">${dateText}</span>` : ""}
       </div>
-      <div class="card-name">${highlight(r.name, query)}</div>
-      <div class="card-snippet">${highlight(r.snippet, query)}</div>
-      <div class="card-bottom">
-        <div class="card-dept">담당부서: ${formatDeptHtml(r.department, r.contact)}</div>
-        <div class="card-actions">
-          <button type="button" class="btn-preview">미리보기</button>
-          <a href="${escapeHtml(r.source_url)}" target="_blank" rel="noopener">관련 사이트로 이동 ↗</a>
-        </div>
+      <div class="body">${highlight(r.snippet, query)}</div>
+      <div class="row3">
+        <span class="dept">${formatDeptHtml(r.department, r.contact)}</span>
+        <span class="acts">
+          <button type="button" class="btn-preview linklike">미리보기</button>
+          <a href="${escapeHtml(r.source_url)}" target="_blank" rel="noopener">원문 ↗</a>
+        </span>
       </div>
     </article>`;
 }
@@ -835,6 +873,7 @@ function applyStateFromUrl() {
   if (includeRepealedEl) includeRepealedEl.checked = state.includeRepealed;
   const recentEl = document.getElementById("recent-only"); if (recentEl) recentEl.checked = state.recentOnly;
   const sortEl = document.getElementById("sort-select"); if (sortEl) sortEl.value = state.sort;
+  renderApplied();  // [T32] URL에서 복원한 조건을 '적용 중' 태그로 표시
   setMode(p.get("mode") === "ask" && state.aiEnabled ? "ask" : "search");  // [T30] 탭이 꺼져 있으면 검색 고정
   if (q) {
     el.input.value = q;
@@ -851,6 +890,46 @@ runSearch = async function (query) {  // eslint-disable-line no-func-assign
   await _origRunSearch(query);
   if (!_restoringFromUrl) syncUrlFromState(query, true);
 };
+
+// ===================== [T32] 적용 중 태그 · 필터 더보기 패널 =====================
+function renderApplied() {
+  const box = document.getElementById("applied-filters");
+  if (!box) return;
+  const tags = [];
+  if (state.source) tags.push({ k: "source", label: state.source });
+  if (state.category) tags.push({ k: "category", label: categoryChipLabel(state.category) });
+  if (state.includeRepealed) tags.push({ k: "repealed", label: "폐지 포함" });
+  if (state.recentOnly) tags.push({ k: "recent", label: "최근 1년 개정" });
+  if (state.sort === "date") tags.push({ k: "sort", label: "시행일 최신순" });
+  if (!tags.length) { box.innerHTML = ""; box.classList.add("hidden"); return; }
+  box.classList.remove("hidden");
+  box.innerHTML = `<span class="applied-label">적용 중</span>` + tags.map((t) =>
+    `<button type="button" class="tag" data-k="${t.k}" aria-label="${escapeHtml(t.label)} 필터 해제">${escapeHtml(t.label)} <i>×</i></button>`).join("")
+    + `<button type="button" class="tag clear" data-k="all">모두 해제</button>`;
+}
+document.getElementById("applied-filters") && document.getElementById("applied-filters").addEventListener("click", (e) => {
+  const t = e.target.closest(".tag"); if (!t) return;
+  const k = t.dataset.k;
+  if (k === "source" || k === "all") { state.source = ""; el.sourceFilters.querySelectorAll(".chip").forEach((c) => c.classList.toggle("active", c.dataset.value === "")); }
+  if (k === "category" || k === "all") state.category = "";
+  if (k === "repealed" || k === "all") { state.includeRepealed = false; const x = document.getElementById("include-repealed"); if (x) x.checked = false; }
+  if (k === "recent" || k === "all") { state.recentOnly = false; const x = document.getElementById("recent-only"); if (x) x.checked = false; }
+  if (k === "sort" || k === "all") { state.sort = "relevance"; const x = document.getElementById("sort-select"); if (x) x.value = "relevance"; }
+  renderCategoryChips(); renderApplied();
+  if (state.mode === "search" && state.lastQuery) runSearch(state.lastQuery);
+});
+// '필터 더보기' 패널 토글
+const moreBtn = document.getElementById("filter-more"), morePanel = document.getElementById("filter-more-panel");
+if (moreBtn && morePanel) {
+  moreBtn.addEventListener("click", () => {
+    const open = morePanel.classList.toggle("hidden") === false;
+    moreBtn.setAttribute("aria-expanded", String(open)); moreBtn.classList.toggle("open", open);
+  });
+}
+// 패널 안 컨트롤이 바뀌면 태그도 갱신 (기존 change 핸들러는 그대로 두고 추가로 붙임)
+["include-repealed", "recent-only", "sort-select"].forEach((id) => {
+  const x = document.getElementById(id); if (x) x.addEventListener("change", renderApplied);
+});
 
 // ===================== [T27] 정렬·기간 필터 · 키보드 단축키 · 인쇄 · 접근성 =====================
 const sortSelectEl = document.getElementById("sort-select");

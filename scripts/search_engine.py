@@ -446,6 +446,7 @@ class SearchEngine:
                 "status": reg_meta.get("status", "현행"),
                 # [T24] 같은 규정이 다른 출처(대학/산학협력단)에서도 수집된 경우 그 출처 목록
                 "also_sources": sorted(also_sources_by_cid.get(cid, ())),
+                "chapter": c.get("chapter", ""),  # [T32] 카드에 소속 장(章) 표시
                 "score": round(score, 4),
             })
 
