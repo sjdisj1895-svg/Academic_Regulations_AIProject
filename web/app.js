@@ -9,8 +9,9 @@
 const API_BASE = window.location.pathname.replace(/\/[^/]*$/, "");  // 예: "" 또는 "/regulation"
 
 const state = {
-  source: "",     // "" | "대학" | "산학협력단"
-  category: "",   // "" | "학칙" | "규정" | ...
+  // [T33] 다중 선택: 비어 있으면 전체. 예) sources ["대학"], categories ["학칙","규정"]
+  sources: [],
+  categories: [],
   lastQuery: "",
   mode: "search", // "search" | "ask"
   lastAskQuery: "",
@@ -141,31 +142,42 @@ function categoryChipLabel(cat) {
 }
 
 function renderCategoryChips() {
-  const groups = state.source
-    ? [[state.source, categoriesBySource[state.source] || []]]
+  // [T33] 다중 선택: 선택된 출처들의 카테고리만(없으면 전체 출처) 보여주고, 카테고리는 여러 개 토글 가능
+  const groups = state.sources.length
+    ? state.sources.map((s) => [s, categoriesBySource[s] || []])
     : Object.entries(categoriesBySource);
-  // 현재 선택된 카테고리가 새 출처에 없으면 "전체"로 되돌린다
+  // 보이지 않게 된(출처 해제) 카테고리는 선택에서 제거
   const visible = new Set(groups.flatMap(([, cats]) => cats));
-  if (state.category && !visible.has(state.category)) state.category = "";
+  state.categories = state.categories.filter((c) => visible.has(c));
 
-  // [T32] 한 줄 축소형: "대학 학칙 규정 지침 · 산학협력단 제1편… …" — '전체' 칩은 '적용 중' 태그의 ×로 대체
   const groupHtml = groups.map(([src, cats]) => {
     const cls = src === "대학" ? "univ" : "foundation";
     const label = groups.length > 1 ? `<span class="chip-subgroup-label ${cls}">${escapeHtml(src)}</span>` : "";
-    const chips = cats.map((c) =>
-      `<button type="button" class="chip cat ${state.category === c ? "active" : ""}" data-value="${escapeHtml(c)}" title="${escapeHtml(c)}" aria-pressed="${state.category === c}">${escapeHtml(categoryChipLabel(c))}</button>`
-    ).join("");
+    const chips = cats.map((c) => {
+      const on = state.categories.includes(c);
+      return `<button type="button" class="chip cat ${on ? "active" : ""}" data-value="${escapeHtml(c)}" title="${escapeHtml(c)}" aria-pressed="${on}">${escapeHtml(categoryChipLabel(c))}</button>`;
+    }).join("");
     return `<div class="chip-subgroup">${label}${chips}</div>`;
   }).join("");
   el.categoryFilters.innerHTML = groupHtml;
-  // 카테고리 칩은 토글식: 선택된 칩을 다시 누르면 해제
   el.categoryFilters.querySelectorAll(".chip").forEach((chip) => {
     chip.addEventListener("click", () => {
-      state.category = state.category === chip.dataset.value ? "" : chip.dataset.value;
+      const v = chip.dataset.value;
+      state.categories = state.categories.includes(v) ? state.categories.filter((x) => x !== v) : [...state.categories, v];
       renderCategoryChips();
       renderApplied();
       if (state.mode === "search" && state.lastQuery) runSearch(state.lastQuery);
     });
+  });
+}
+
+// [T33] 출처 세그먼트 표시 갱신: 아무것도 없으면 '전체' 활성, 있으면 해당 출처들 활성
+function renderSourceChips() {
+  el.sourceFilters.querySelectorAll(".chip").forEach((c) => {
+    const v = c.dataset.value;
+    const on = v === "" ? state.sources.length === 0 : state.sources.includes(v);
+    c.classList.toggle("active", on);
+    c.setAttribute("aria-pressed", String(on));
   });
 }
 
@@ -205,20 +217,25 @@ async function loadFilters() {
   }
 }
 
-function bindChipGroup(container, stateKey) {
+// [T33] 출처 세그먼트: 다중 토글. '전체'를 누르면 모두 해제, 개별 출처는 켜고/끄기 (전부 켜지면 전체와 같으므로 비움)
+function bindChipGroup(container) {
   container.querySelectorAll(".chip").forEach((chip) => {
     chip.addEventListener("click", () => {
-      container.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
-      chip.classList.add("active");
-      state[stateKey] = chip.dataset.value;
-      // 출처가 바뀌면 그 출처에 맞는 카테고리만 다시 그린다
-      if (stateKey === "source") renderCategoryChips();
-      renderApplied();  // [T32] 적용 중 태그 갱신
+      const v = chip.dataset.value;
+      if (v === "") state.sources = [];
+      else {
+        state.sources = state.sources.includes(v) ? state.sources.filter((x) => x !== v) : [...state.sources, v];
+        const all = [...container.querySelectorAll(".chip")].map((c) => c.dataset.value).filter(Boolean);
+        if (all.every((s) => state.sources.includes(s))) state.sources = [];
+      }
+      renderSourceChips();
+      renderCategoryChips();   // 선택된 출처의 카테고리만 다시 그린다
+      renderApplied();
       if (state.mode === "search" && state.lastQuery) runSearch(state.lastQuery);
     });
   });
 }
-bindChipGroup(el.sourceFilters, "source");
+bindChipGroup(el.sourceFilters);
 
 // [T31] 푸터는 하단 고정(헤더는 스크롤). 푸터 실제 높이를 측정해 body 하단 여백(--footer-h)에 반영해
 // 마지막 결과 카드가 푸터 뒤에 가리지 않게 한다 (푸터 데이터 채워진 뒤·창 크기 변경 시 재측정).
@@ -324,8 +341,8 @@ async function runSearch(query) {
   try {
     const data = await apiGet("/api/search", {
       q: query, top_k: 15,
-      source: state.source || undefined,
-      category: state.category || undefined,
+      source: state.sources.length ? state.sources : undefined,        // [T33] 다중 선택
+      category: state.categories.length ? state.categories : undefined,
       include_repealed: state.includeRepealed ? "true" : undefined,
       since: state.recentOnly ? oneYearAgoISO() : undefined,   // [T27]
       sort: state.sort !== "relevance" ? state.sort : undefined, // [T27]
@@ -369,8 +386,8 @@ async function askQuestion(query) {
   const payload = {
     question: query,
     top_k: 5,
-    source: state.source ? [state.source] : undefined,
-    category: state.category ? [state.category] : undefined,
+    source: state.sources.length ? state.sources : undefined,        // [T33] 다중 선택
+    category: state.categories.length ? state.categories : undefined,
     history: state.chatHistory.slice(-3),
   };
   try {
@@ -847,8 +864,8 @@ let _restoringFromUrl = false;
 function syncUrlFromState(query, push) {
   const params = new URLSearchParams();
   if (query) params.set("q", query);
-  if (state.source) params.set("source", state.source);
-  if (state.category) params.set("category", state.category);
+  if (state.sources.length) params.set("source", state.sources.join(","));          // [T33] 쉼표로 여러 개
+  if (state.categories.length) params.set("category", state.categories.join(","));
   if (state.includeRepealed) params.set("repealed", "1");
   if (state.recentOnly) params.set("recent", "1");           // [T27]
   if (state.sort && state.sort !== "relevance") params.set("sort", state.sort); // [T27]
@@ -862,13 +879,14 @@ function syncUrlFromState(query, push) {
 function applyStateFromUrl() {
   const p = new URLSearchParams(window.location.search);
   const q = (p.get("q") || "").trim();
-  state.source = p.get("source") || "";
-  state.category = p.get("category") || "";
+  const split = (s) => (s || "").split(",").map((x) => x.trim()).filter(Boolean);
+  state.sources = split(p.get("source"));                                       // [T33] 다중
+  state.categories = split(p.get("category"));
   state.includeRepealed = p.get("repealed") === "1";
   state.recentOnly = p.get("recent") === "1";                                  // [T27]
   state.sort = p.get("sort") === "date" ? "date" : "relevance";               // [T27]
   // 칩·토글 표시를 상태에 맞춰 갱신
-  el.sourceFilters.querySelectorAll(".chip").forEach((c) => c.classList.toggle("active", c.dataset.value === state.source));
+  renderSourceChips();
   renderCategoryChips();
   if (includeRepealedEl) includeRepealedEl.checked = state.includeRepealed;
   const recentEl = document.getElementById("recent-only"); if (recentEl) recentEl.checked = state.recentOnly;
@@ -896,26 +914,27 @@ function renderApplied() {
   const box = document.getElementById("applied-filters");
   if (!box) return;
   const tags = [];
-  if (state.source) tags.push({ k: "source", label: state.source });
-  if (state.category) tags.push({ k: "category", label: categoryChipLabel(state.category) });
-  if (state.includeRepealed) tags.push({ k: "repealed", label: "폐지 포함" });
-  if (state.recentOnly) tags.push({ k: "recent", label: "최근 1년 개정" });
-  if (state.sort === "date") tags.push({ k: "sort", label: "시행일 최신순" });
+  state.sources.forEach((s) => tags.push({ k: "source", v: s, label: s }));                      // [T33] 값별 태그
+  state.categories.forEach((c) => tags.push({ k: "category", v: c, label: categoryChipLabel(c) }));
+  if (state.includeRepealed) tags.push({ k: "repealed", v: "", label: "폐지 포함" });
+  if (state.recentOnly) tags.push({ k: "recent", v: "", label: "최근 1년 개정" });
+  if (state.sort === "date") tags.push({ k: "sort", v: "", label: "시행일 최신순" });
   if (!tags.length) { box.innerHTML = ""; box.classList.add("hidden"); return; }
   box.classList.remove("hidden");
   box.innerHTML = `<span class="applied-label">적용 중</span>` + tags.map((t) =>
-    `<button type="button" class="tag" data-k="${t.k}" aria-label="${escapeHtml(t.label)} 필터 해제">${escapeHtml(t.label)} <i>×</i></button>`).join("")
+    `<button type="button" class="tag" data-k="${t.k}" data-v="${escapeHtml(t.v)}" aria-label="${escapeHtml(t.label)} 필터 해제">${escapeHtml(t.label)} <i>×</i></button>`).join("")
     + `<button type="button" class="tag clear" data-k="all">모두 해제</button>`;
 }
 document.getElementById("applied-filters") && document.getElementById("applied-filters").addEventListener("click", (e) => {
   const t = e.target.closest(".tag"); if (!t) return;
-  const k = t.dataset.k;
-  if (k === "source" || k === "all") { state.source = ""; el.sourceFilters.querySelectorAll(".chip").forEach((c) => c.classList.toggle("active", c.dataset.value === "")); }
-  if (k === "category" || k === "all") state.category = "";
+  const k = t.dataset.k, v = t.dataset.v;
+  if (k === "all") { state.sources = []; state.categories = []; }
+  if (k === "source") state.sources = state.sources.filter((x) => x !== v);
+  if (k === "category") state.categories = state.categories.filter((x) => x !== v);
   if (k === "repealed" || k === "all") { state.includeRepealed = false; const x = document.getElementById("include-repealed"); if (x) x.checked = false; }
   if (k === "recent" || k === "all") { state.recentOnly = false; const x = document.getElementById("recent-only"); if (x) x.checked = false; }
   if (k === "sort" || k === "all") { state.sort = "relevance"; const x = document.getElementById("sort-select"); if (x) x.value = "relevance"; }
-  renderCategoryChips(); renderApplied();
+  renderSourceChips(); renderCategoryChips(); renderApplied();
   if (state.mode === "search" && state.lastQuery) runSearch(state.lastQuery);
 });
 // '필터 더보기' 패널 토글

@@ -2,111 +2,111 @@
   "success_n": 15,
   "total_n": 15,
   "success_rate": 100.0,
-  "avg_time": 0.048606157302856445,
-  "max_time": 0.08442854881286621,
+  "avg_time": 0.05502317746480306,
+  "max_time": 0.10556936264038086,
   "rows": [
     {
       "query": "연구비",
       "success": true,
-      "elapsed": 0.08442854881286621,
+      "elapsed": 0.10556936264038086,
       "top1_name": "경상국립대학교 분자제어연구소 규정",
       "total": 5
     },
     {
       "query": "휴학",
       "success": true,
-      "elapsed": 0.04921531677246094,
+      "elapsed": 0.06222844123840332,
       "top1_name": "경상국립대학교 학사관리 규정",
       "total": 5
     },
     {
       "query": "장학",
       "success": true,
-      "elapsed": 0.03961825370788574,
+      "elapsed": 0.04590582847595215,
       "top1_name": "경상국립대학교 등록금 재원 장학금 지침",
       "total": 5
     },
     {
       "query": "등록금",
       "success": true,
-      "elapsed": 0.03465414047241211,
+      "elapsed": 0.04874277114868164,
       "top1_name": "경상국립대학교 공동ㆍ복수학사학위과정 운영에 관한 규정",
       "total": 5
     },
     {
       "query": "성적",
       "success": true,
-      "elapsed": 0.03894352912902832,
+      "elapsed": 0.0452578067779541,
       "top1_name": "경상국립대학교 취업자 출석 및 학점인정 운영에 관한 지침",
       "total": 5
     },
     {
       "query": "수강신청",
       "success": true,
-      "elapsed": 0.04634451866149902,
+      "elapsed": 0.04889488220214844,
       "top1_name": "경상국립대학교 학사관리 규정",
       "total": 5
     },
     {
       "query": "연구윤리",
       "success": true,
-      "elapsed": 0.04809975624084473,
+      "elapsed": 0.051699161529541016,
       "top1_name": "경상국립대학교 연구윤리 규정",
       "total": 5
     },
     {
       "query": "졸업",
       "success": true,
-      "elapsed": 0.03929734230041504,
+      "elapsed": 0.04055190086364746,
       "top1_name": "경상국립대학교 학칙",
       "total": 5
     },
     {
       "query": "논문 표절",
       "success": true,
-      "elapsed": 0.049664974212646484,
+      "elapsed": 0.04831528663635254,
       "top1_name": "경상국립대학교 연구윤리 규정",
       "total": 5
     },
     {
       "query": "산학협력단 인사",
       "success": true,
-      "elapsed": 0.054093360900878906,
+      "elapsed": 0.05806708335876465,
       "top1_name": "경상국립대학교 Joint Appointment 교원 인사 운영 규정",
       "total": 5
     },
     {
       "query": "연구노트 작성",
       "success": true,
-      "elapsed": 0.04777169227600098,
+      "elapsed": 0.05295228958129883,
       "top1_name": "경상국립대학교 연구노트 작성·관리 지침",
       "total": 5
     },
     {
       "query": "장애학생 지원",
       "success": true,
-      "elapsed": 0.049753427505493164,
+      "elapsed": 0.05336499214172363,
       "top1_name": "경상국립대학교 학칙",
       "total": 5
     },
     {
       "query": "휴학하려면 어떻게 해?",
       "success": true,
-      "elapsed": 0.047490596771240234,
+      "elapsed": 0.05669808387756348,
       "top1_name": "경상국립대학교 학칙",
       "total": 5
     },
     {
       "query": "연구비 어떻게 신청하나요",
       "success": true,
-      "elapsed": 0.05144548416137695,
+      "elapsed": 0.0548548698425293,
       "top1_name": "경상국립대학교 교내연구비 관리 지침",
       "total": 5
     },
     {
       "query": "등록금 나눠서 낼 수 있나요",
       "success": true,
-      "elapsed": 0.04827141761779785,
+      "elapsed": 0.05224490165710449,
       "top1_name": "경상국립대학교 공동ㆍ복수학사학위과정 운영에 관한 규정",
       "total": 5
     }

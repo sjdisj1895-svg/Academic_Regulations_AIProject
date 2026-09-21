@@ -418,6 +418,36 @@ class SearchEngine:
         else:
             top = combined[:top_k]
 
+        # [T33] 출처 다양성 보정: 출처 필터가 없을 때 대학 규정(363건)이 상위를 독식해 산학협력단 결과가
+        # 관련성이 있어도(예: '휴학' → 계약학과 운영 규정 제24조) 아예 안 보이는 문제. 상위 top_k에 어떤
+        # 출처가 MIN_PER_SOURCE건 미만이면, 그 출처의 후보 중 관련성 기준을 넘는 상위 항목을 꼴찌 자리와
+        # 바꿔 넣는다 (관련도 순서는 최대한 유지 — 뒤쪽 자리만 교체).
+        if not sources and top_k >= 8:
+            MIN_PER_SOURCE = 3
+            present = {}
+            for cid, _ in top:
+                present.setdefault(self.chunk_by_id[cid]["source"], 0)
+                present[self.chunk_by_id[cid]["source"]] += 1
+            all_sources = {self.chunk_by_id[cid]["source"] for cid, _ in combined}
+            top_ids = {cid for cid, _ in top}
+            for src in sorted(all_sources):
+                need = MIN_PER_SOURCE - present.get(src, 0)
+                if need <= 0:
+                    continue
+                extra = [(cid, s) for cid, s in combined
+                         if cid not in top_ids and self.chunk_by_id[cid]["source"] == src][:need]
+                for item in extra:
+                    # 꼴찌 중 '이미 충분히 많은 출처'의 항목을 하나 빼고 그 자리에 넣는다
+                    for i in range(len(top) - 1, -1, -1):
+                        tsrc = self.chunk_by_id[top[i][0]]["source"]
+                        if tsrc != src and present.get(tsrc, 0) > MIN_PER_SOURCE:
+                            present[tsrc] -= 1
+                            top.pop(i)
+                            break
+                    top.append(item)
+                    top_ids.add(item[0])
+                    present[src] = present.get(src, 0) + 1
+
         results = []
         for cid, score in top:
             c = self.chunk_by_id[cid]
