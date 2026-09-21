@@ -998,3 +998,41 @@ mark, .result-card.v2 mark, .group-h mark{ background:#fff3a0; color:inherit; fo
 @media (max-width:900px){ .site-header::before{ width:520px; height:180px; right:-40px; top:-34px; opacity:.14; } }
 @media (max-width:600px){ .site-header::before{ width:340px; height:118px; right:-40px; top:-22px; opacity:.13; } }
 @media print{ .site-header::before{ display:none; } }
+
+/* ===================== [T36] 첫 화면 안내 카드 · 결과 없음 · 오류 화면 ===================== */
+.home-card{ background:var(--color-card); border:1px solid var(--color-border); border-radius:14px; padding:20px 22px; box-shadow:0 1px 6px rgba(67,82,90,.06); }
+.home-title{ font-size:15px; color:var(--gnu-grey); margin-bottom:14px; }
+.home-title b{ color:var(--gnu-blue-deep); }
+.home-examples{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.home-ex{ display:flex; flex-direction:column; align-items:flex-start; gap:4px; text-align:left;
+  border:1px solid var(--color-border); background:#fff; border-radius:12px; padding:12px 14px; cursor:pointer; font-family:inherit; transition:all .15s; }
+.home-ex:hover{ border-color:var(--gnu-blue); background:#fbfdff; box-shadow:0 4px 14px rgba(0,158,219,.12); transform:translateY(-1px); }
+.home-ex .ic{ width:22px; height:22px; color:var(--gnu-blue); }
+.home-ex .ic svg{ width:22px; height:22px; }
+.home-ex .lab{ font-size:12px; color:var(--color-text-sub); font-weight:700; }
+.home-ex .q{ font-size:14.5px; color:var(--gnu-grey); font-weight:700; }
+.home-popular{ margin-top:16px; padding-top:14px; border-top:1px dashed var(--color-border); }
+.home-popular .popular-label{ display:inline-flex; align-items:center; gap:6px; margin-bottom:8px; }
+.home-popular .popular-label .ic, .home-popular .popular-label .ic svg{ width:16px; height:16px; color:var(--gnu-gold); }
+.suggest-chip.home-ex{ color:inherit; }
+
+.empty-state.v2{ background:var(--color-card); border:1px solid var(--color-border); border-radius:14px; padding:34px 24px 26px; text-align:center; box-shadow:0 1px 6px rgba(67,82,90,.06); }
+.empty-state.v2 .empty-icon{ width:56px; height:56px; margin:0 auto 10px; color:var(--gnu-blue); }
+.empty-state.v2 .empty-icon svg{ width:56px; height:56px; }
+.empty-state.v2.error .empty-icon{ color:#b23a3a; }
+.empty-state.v2 .empty-title{ font-size:17px; font-weight:700; color:var(--gnu-grey); margin-bottom:6px; }
+.empty-state.v2 .empty-sub{ font-size:13.5px; color:var(--color-text-sub); }
+.empty-state.v2 .empty-actions{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin:16px 0 6px; }
+.empty-state.v2 .empty-actions .btn-secondary{ margin:0; }
+.empty-state.v2 .empty-sugg{ margin-top:14px; }
+.empty-state.v2 .empty-sugg .popular-label{ display:block; margin-bottom:8px; }
+.empty-state.v2 .empty-sugg .suggest-list{ justify-content:center; }
+.empty-state.v2 .empty-contact{ margin-top:16px; padding-top:12px; border-top:1px dashed var(--color-border); }
+
+@media (max-width:600px){
+  .home-card{ padding:16px 14px; }
+  .home-examples{ grid-template-columns:1fr; gap:8px; }
+  .home-ex{ flex-direction:row; align-items:center; gap:10px; }
+  .home-ex .lab{ min-width:74px; }
+  .empty-state.v2{ padding:26px 16px 20px; }
+}

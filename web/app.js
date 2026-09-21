@@ -621,12 +621,17 @@ function showLoading() {
 }
 
 function showError(message) {
+  // [T36] 오류 화면: 원인 문구 + 다시 시도 버튼
   el.statusArea.innerHTML = "";
   el.results.innerHTML = `
-    <div class="empty-state">
-      <div class="empty-icon">⚠️</div>
+    <div class="empty-state v2 error">
+      <div class="empty-icon">${ICON.warn}</div>
       <div class="empty-title">검색 중 문제가 발생했습니다</div>
-      <div>${escapeHtml(message)}</div>
+      <div class="empty-sub">${escapeHtml(message)}</div>
+      <div class="empty-actions">
+        <button type="button" class="btn-secondary btn-retry">다시 시도</button>
+      </div>
+      <div class="empty-contact">계속 반복되면 정보전산처에 알려주세요.</div>
     </div>`;
 }
 
@@ -634,17 +639,26 @@ const SUGGESTIONS = ["연구비", "휴학", "장학금", "등록금", "연구윤
 
 function renderResults(data, query) {
   if (data.total === 0) {
-    el.statusArea.innerHTML = `<div class="status-summary">'<b>${escapeHtml(query)}</b>'에 대한 검색 결과가 없습니다.</div>`;
+    // [T36] 결과 없음: 왜 없을 수 있는지(필터·폐지) 바로 풀 수 있는 버튼 + 추천 검색어 + 담당부서 안내
+    const hasFilters = state.sources.length || state.categories.length || state.recentOnly;
+    el.statusArea.innerHTML = `<div class="summary"><span class="k">‘${escapeHtml(query)}’ <b>0</b>건</span>${hasFilters ? `<span class="k">필터 적용 중</span>` : ""}</div>`;
     el.results.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">🔍</div>
-        <div class="empty-title">검색 결과가 없습니다</div>
-        <div>다른 검색어를 사용해보시거나 아래 추천 검색어를 참고해보세요.</div>
-        <div class="suggest-list">
-          ${SUGGESTIONS.map((s) => `<button type="button" class="suggest-chip" data-q="${s}">${s}</button>`).join("")}
+      <div class="empty-state v2">
+        <div class="empty-icon">${ICON.empty}</div>
+        <div class="empty-title">‘${escapeHtml(query)}’에 맞는 조항을 찾지 못했습니다</div>
+        <div class="empty-sub">검색어를 짧게 줄이거나 다른 표현으로 바꿔보세요. (예: "휴학 신청 기간" → "휴학")</div>
+        <div class="empty-actions">
+          ${hasFilters ? `<button type="button" class="btn-secondary btn-clear-filters">필터 모두 해제하고 다시 검색</button>` : ""}
+          ${!state.includeRepealed ? `<button type="button" class="btn-secondary btn-include-repealed">폐지된 규정까지 포함해 검색</button>` : ""}
+        </div>
+        <div class="empty-sugg">
+          <span class="popular-label">이런 검색어는 어떠세요</span>
+          <div class="suggest-list">
+            ${SUGGESTIONS.map((s) => `<button type="button" class="suggest-chip" data-q="${s}">${s}</button>`).join("")}
+          </div>
         </div>
         <div class="empty-contact">
-          찾는 규정이 없다면 원문 담당 부서에 문의해주세요 —
+          규정에 없는 내용이거나 원문 확인이 필요하면 담당 부서에 문의해주세요 —
           대학 규정: 총무과 <a href="tel:055-772-0334">055-772-0334</a> ·
           산학협력단 규정: 산학연구과 <a href="tel:055-772-0211">055-772-0211</a><br>
           <a href="https://www.gnu.ac.kr/main/cm/cntnts/cntntsView.do?mi=1255&cntntsId=1214" target="_blank" rel="noopener">경상국립대학교 학칙/규정/지침 원문 페이지 ↗</a>
@@ -909,6 +923,23 @@ runSearch = async function (query) {  // eslint-disable-line no-func-assign
   if (!_restoringFromUrl) syncUrlFromState(query, true);
 };
 
+// ===================== [T36] 결과 없음/오류 화면의 액션 버튼 =====================
+el.results.addEventListener("click", (e) => {
+  if (e.target.closest(".btn-clear-filters")) {
+    state.sources = []; state.categories = []; state.recentOnly = false;
+    const r = document.getElementById("recent-only"); if (r) r.checked = false;
+    renderSourceChips(); renderCategoryChips(); renderApplied();
+    if (state.lastQuery) runSearch(state.lastQuery);
+  } else if (e.target.closest(".btn-include-repealed")) {
+    state.includeRepealed = true;
+    const x = document.getElementById("include-repealed"); if (x) x.checked = true;
+    renderApplied();
+    if (state.lastQuery) runSearch(state.lastQuery);
+  } else if (e.target.closest(".btn-retry")) {
+    if (state.lastQuery) runSearch(state.lastQuery);
+  }
+});
+
 // ===================== [T32] 적용 중 태그 · 필터 더보기 패널 =====================
 function renderApplied() {
   const box = document.getElementById("applied-filters");
@@ -999,19 +1030,44 @@ _modalObserver.observe(el.modalOverlay, { attributes: true, attributeFilter: ["c
 
 // ===================== [T25] 첫 화면: 많이 찾는 검색어 =====================
 // 검색 전 빈 결과 영역에 로그 기반 인기 검색어 칩을 보여준다 (클릭 → 바로 검색).
+// [T36] 첫 화면 안내 카드: "무엇으로 검색할 수 있나" 예시 3종 + 많이 찾는 검색어
+const ICON = {
+  search: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>`,
+  doc: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h6"/></svg>`,
+  chat: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/></svg>`,
+  flame: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c4 0 7-3 7-7 0-3-2-5-3-7-1 2-2 3-3 3 0-3-1-6-4-8 0 4-4 6-4 12 0 4 3 7 7 7z"/></svg>`,
+  empty: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5M8.5 8.5l5 5M13.5 8.5l-5 5"/></svg>`,
+  warn: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>`,
+};
+const HOME_EXAMPLES = [
+  { icon: "doc",    label: "규정명으로",   q: "학사관리 규정",        hint: "규정 이름의 일부만 적어도 됩니다" },
+  { icon: "search", label: "조항 내용으로", q: "휴학 신청 기간",       hint: "본문에 있는 단어 조합" },
+  { icon: "chat",   label: "문장으로",     q: "휴학하려면 어떻게 해?", hint: "말하듯 물어도 뜻으로 찾습니다" },
+];
 async function renderPopular() {
   if (state.lastQuery || (window.location.search && new URLSearchParams(window.location.search).get("q"))) return;
-  try {
-    const data = await apiGet("/api/popular", { limit: 8 });
-    if (!data.queries || !data.queries.length || state.lastQuery) return;
-    el.statusArea.innerHTML = `
-      <div class="popular-box">
-        <div class="popular-label">🔥 많이 찾는 검색어</div>
+  let popular = [];
+  try { popular = (await apiGet("/api/popular", { limit: 8 })).queries || []; } catch (_) { /* 부가 기능 */ }
+  if (state.lastQuery) return;
+  el.statusArea.innerHTML = `
+    <div class="home-card">
+      <div class="home-title">규정명, 조항 내용, 궁금한 문장 — <b>어떤 것으로든</b> 검색하세요</div>
+      <div class="home-examples">
+        ${HOME_EXAMPLES.map((e) => `
+          <button type="button" class="home-ex suggest-chip" data-q="${escapeHtml(e.q)}" title="${escapeHtml(e.hint)}">
+            <span class="ic">${ICON[e.icon]}</span>
+            <span class="lab">${escapeHtml(e.label)}</span>
+            <span class="q">${escapeHtml(e.q)}</span>
+          </button>`).join("")}
+      </div>
+      ${popular.length ? `
+      <div class="home-popular">
+        <span class="popular-label"><span class="ic">${ICON.flame}</span> 많이 찾는 검색어</span>
         <div class="suggest-list">
-          ${data.queries.map((q) => `<button type="button" class="suggest-chip" data-q="${escapeHtml(q)}">${escapeHtml(q)}</button>`).join("")}
+          ${popular.map((q) => `<button type="button" class="suggest-chip" data-q="${escapeHtml(q)}">${escapeHtml(q)}</button>`).join("")}
         </div>
-      </div>`;
-  } catch (_) { /* 부가 기능 — 실패해도 조용히 넘어간다 */ }
+      </div>` : ""}
+    </div>`;
 }
 
 // ===================== 초기화 =====================
