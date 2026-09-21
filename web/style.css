@@ -986,3 +986,15 @@ mark, .result-card.v2 mark, .group-h mark{ background:#fff3a0; color:inherit; fo
 .subcats .chip-subgroup{ align-items:center; }
 .subcats .chip-subgroup + .chip-subgroup{ margin-left:0; width:100%; margin-top:4px; }  /* 산학협력단 줄은 새 줄에서 시작 */
 @media (max-width:600px){ .subcats .chip-subgroup-label{ font-size:12px; padding:4px 8px; } }
+/* ===================== [T35] 히어로 그래픽 모티프 (VI BS21 그래픽 모티프 C) =====================
+   심벌마크를 배경색 위에 크게, 위쪽이 열린/잘린 형태로 흰색 반투명 배치 — 공식 응용 방식 그대로.
+   좌우 대칭이 아닌 우측 배치로 제목·통계 줄과 겹치지 않게 한다. */
+.site-header::before{
+  content:""; position:absolute; right:-30px; top:-48px; width:760px; height:260px;
+  background:url("assets/gnu_symbol_white.png") no-repeat right top / contain;
+  opacity:.15; pointer-events:none; z-index:0;
+}
+.site-header .header-inner{ position:relative; z-index:1; }
+@media (max-width:900px){ .site-header::before{ width:520px; height:180px; right:-40px; top:-34px; opacity:.14; } }
+@media (max-width:600px){ .site-header::before{ width:340px; height:118px; right:-40px; top:-22px; opacity:.13; } }
+@media print{ .site-header::before{ display:none; } }
