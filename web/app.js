@@ -755,6 +755,10 @@ let modalState = { chunkId: null, regId: null, mode: "article" };
 
 async function openPreview(chunkId, regId) {
   modalState = { chunkId, regId, mode: "article" };
+  // [T37] 데스크톱 사이드 패널: 지금 보고 있는 카드를 표시 (다른 카드를 누르면 옮겨감)
+  document.querySelectorAll(".result-card.active-preview").forEach((c) => c.classList.remove("active-preview"));
+  const activeCard = document.querySelector(`.result-card[data-chunk-id="${CSS.escape(chunkId)}"]`);
+  if (activeCard) activeCard.classList.add("active-preview");
   el.modalOverlay.classList.remove("hidden");
   setTab("article");
   el.modalBody.innerHTML = `<div class="loading-spinner"></div>`;
@@ -852,6 +856,7 @@ async function renderFullTextWithHighlight(fullText, chunkId) {
 
 function closeModal() {
   el.modalOverlay.classList.add("hidden");
+  document.querySelectorAll(".result-card.active-preview").forEach((c) => c.classList.remove("active-preview"));  // [T37]
 }
 el.modalClose.addEventListener("click", closeModal);
 el.modalOverlay.addEventListener("click", (e) => {

@@ -1036,3 +1036,33 @@ mark, .result-card.v2 mark, .group-h mark{ background:#fff3a0; color:inherit; fo
   .home-ex .lab{ min-width:74px; }
   .empty-state.v2{ padding:26px 16px 20px; }
 }
+
+/* ===================== [T37] 미리보기: 데스크톱은 우측 사이드 패널, 모바일은 기존 전체 모달 =====================
+   결과 목록을 보면서 옆에서 조문을 읽는 흐름. 오버레이는 투명·클릭 통과(pointer-events:none)로 두어
+   패널이 열린 채 다른 카드를 눌러 내용을 바꿀 수 있다. 본문은 패널 폭만큼 왼쪽으로 비켜 겹치지 않는다. */
+@media (min-width: 901px){
+  .modal-overlay{ background:transparent; pointer-events:none; align-items:stretch; justify-content:flex-end; padding:0; }
+  .modal{
+    pointer-events:auto; width:480px; max-width:46vw; max-height:none; height:auto; border-radius:0;
+    position:fixed; top:0; right:0; bottom:var(--footer-h);
+    border-left:1px solid var(--color-border); box-shadow:-12px 0 32px rgba(67,82,90,.16);
+    animation:panel-in .22s ease-out;
+  }
+  @keyframes panel-in{ from{ transform:translateX(24px); opacity:0 } to{ transform:none; opacity:1 } }
+  .modal-header{ padding:20px 22px 12px 22px; }
+  .modal-header h2{ font-size:17px; padding-right:28px; }
+  .modal-body{ padding:16px 22px; font-size:14.5px; }
+  .modal-footer{ padding:12px 22px; }
+  /* 패널이 열리면 결과 영역을 왼쪽으로 비켜 겹치지 않게 (검색 카드는 그대로) */
+  body.modal-open .container-scroll{ margin-left:24px; margin-right:auto; max-width:calc(100% - 480px - 48px); transition:max-width .22s ease, margin .22s ease; }
+  body.modal-open .to-top{ right:calc(480px + 22px); }
+  /* 지금 보고 있는 조항 카드 표시 */
+  .result-card.v2.active-preview{ background:var(--blue-10); }
+  .result-card.v2.active-preview::before{ width:6px; }
+}
+@media (min-width: 901px) and (max-width: 1180px){
+  .modal{ width:420px; }
+  body.modal-open .container-scroll{ max-width:calc(100% - 420px - 40px); margin-left:16px; }
+  body.modal-open .to-top{ right:calc(420px + 22px); }
+}
+@media print{ .modal{ position:static !important; width:100% !important; max-width:none !important; } }
