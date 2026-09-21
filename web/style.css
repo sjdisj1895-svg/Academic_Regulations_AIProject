@@ -973,3 +973,16 @@ mark, .result-card.v2 mark, .group-h mark{ background:var(--blue-16); color:inhe
 /* [T33] 하이라이트: 담당자 요청 — 노란 배경 + 빨간 밑줄 */
 mark, .result-card.v2 mark, .group-h mark{ background:#fff3a0; color:inherit; font-weight:700; border-radius:2px; padding:0 2px; box-shadow:inset 0 -2px 0 #d9342b; }
 .result-card.v2 .acts a{ text-decoration:none; }  /* 기본 밑줄 제거 (hover 시에만) */
+/* [T34] 하이라이트: 빨간 밑줄 제거 → 노란 배경만 */
+mark, .result-card.v2 mark, .group-h mark{ background:#fff3a0; color:inherit; font-weight:700; border-radius:2px; padding:0 2px; box-shadow:none; }
+
+/* [T34] 카테고리 소그룹 라벨(대학 / 산학협력단) — 더 크고 배지처럼 눈에 띄게 */
+.subcats .chip-subgroup-label{
+  display:inline-flex; align-items:center; font-size:13px; font-weight:800; letter-spacing:-.01em;
+  padding:5px 10px; border-radius:8px; margin-right:6px; color:#fff;
+}
+.subcats .chip-subgroup-label.univ{ background:var(--gnu-grey); }
+.subcats .chip-subgroup-label.foundation{ background:var(--gnu-gold); }
+.subcats .chip-subgroup{ align-items:center; }
+.subcats .chip-subgroup + .chip-subgroup{ margin-left:0; width:100%; margin-top:4px; }  /* 산학협력단 줄은 새 줄에서 시작 */
+@media (max-width:600px){ .subcats .chip-subgroup-label{ font-size:12px; padding:4px 8px; } }
