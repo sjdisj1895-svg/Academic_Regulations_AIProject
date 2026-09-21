@@ -17,7 +17,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" as="style" crossorigin
       href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
-<link rel="stylesheet" href="style.css?v=34">
+<link rel="stylesheet" href="style.css?v=35">
 </head>
 <body>
 
@@ -53,8 +53,8 @@
   <section class="search-section">
     <!-- 모드 전환 탭: 검색 ↔ AI에게 질문하기 -->
     <div class="mode-tabs" id="mode-tabs">
-      <button type="button" class="mode-tab active" data-mode="search">🔍 검색</button>
-      <button type="button" class="mode-tab" data-mode="ask">💬 AI에게 질문하기</button>
+      <button type="button" class="mode-tab active" data-mode="search"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>검색</button>
+      <button type="button" class="mode-tab" data-mode="ask"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/></svg>AI에게 질문하기</button>
     </div>
 
     <form id="search-form" class="search-box mode-panel" data-mode-panel="search" autocomplete="off">
@@ -122,7 +122,7 @@
   <!-- AI 질문하기 모드: 채팅 형태 대화 영역 -->
   <section class="chat-area mode-panel hidden" data-mode-panel="ask" id="chat-area">
     <div class="chat-welcome">
-      <div class="chat-welcome-icon">💬</div>
+      <div class="chat-welcome-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/></svg></div>
       <div>학사 규정, 산학협력단 규정에 대해 무엇이든 물어보세요.<br>
         AI가 관련 조항을 찾아 답변해드립니다. (예: "휴학 신청은 언제까지 해야 해?", "연구비는 어떻게 신청하나요?")</div>
     </div>
@@ -149,7 +149,7 @@
     </div>
     <div class="modal-footer">
       <!-- [T27] 인쇄: 조문·규정명·시행일·출처만 깔끔하게 (print CSS) -->
-      <button type="button" id="modal-print" class="btn-secondary" title="이 내용만 인쇄합니다 (Ctrl+P)">🖨 인쇄</button>
+      <button type="button" id="modal-print" class="btn-secondary" title="이 내용만 인쇄합니다 (Ctrl+P)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></svg>인쇄</button>
       <a id="modal-site-link" href="#" target="_blank" rel="noopener" class="btn-primary">
         관련 사이트로 이동 ↗
       </a>
@@ -158,7 +158,7 @@
 </div>
 
 <!-- [T28] 맨 위로 (300px 이상 스크롤 시 표시) -->
-<button type="button" id="to-top" class="to-top" aria-label="맨 위로" title="맨 위로">↑</button>
+<button type="button" id="to-top" class="to-top" aria-label="맨 위로" title="맨 위로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
 
 <footer class="site-footer">
   <div class="footer-logo"><img src="assets/gnu_emblem_combo_kr_en_white.png" alt="경상국립대학교"></div>
@@ -178,6 +178,6 @@
   <p class="footer-copy">52828 경상남도 진주시 진주대로 501 (가좌캠퍼스) · 대표전화 055-772-0114 · Copyright © Gyeongsang National University. All rights reserved.</p>
 </footer>
 
-<script src="app.js?v=34"></script>
+<script src="app.js?v=35"></script>
 </body>
 </html>

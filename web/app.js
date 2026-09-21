@@ -689,6 +689,9 @@ function renderResults(data, query) {
     byName.get(key).items.push(r);
   });
   const SOURCE_ORDER = ["대학", "산학협력단"];
+  // [T38] 결과가 갈아끼워질 때 짧은 페이드 인 (클래스를 a/b로 번갈아 붙여 매번 애니메이션 재생)
+  el.results.classList.toggle("fade-a", !el.results.classList.contains("fade-a"));
+  el.results.classList.toggle("fade-b", !el.results.classList.contains("fade-a"));
   el.results.innerHTML = groups.map((g) => {
     const shared = g.also.length ? [...new Set([g.source, ...g.also])].sort((a, b) => SOURCE_ORDER.indexOf(a) - SOURCE_ORDER.indexOf(b)).join("·") + " 공통" : g.source;
     const repealed = g.status === "폐지";

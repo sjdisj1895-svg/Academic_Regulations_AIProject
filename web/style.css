@@ -1066,3 +1066,28 @@ mark, .result-card.v2 mark, .group-h mark{ background:#fff3a0; color:inherit; fo
   body.modal-open .to-top{ right:calc(420px + 22px); }
 }
 @media print{ .modal{ position:static !important; width:100% !important; max-width:none !important; } }
+
+/* ===================== [T38] 아이콘 통일(라인 SVG) · 미세 인터랙션 ===================== */
+.mode-tab{ display:inline-flex; align-items:center; justify-content:center; gap:7px; }
+.mode-tab .ic{ width:16px; height:16px; }
+.btn-secondary{ display:inline-flex; align-items:center; gap:6px; }
+.btn-secondary .ic{ width:15px; height:15px; }
+.chat-welcome-icon{ width:40px; height:40px; margin:0 auto 8px; color:var(--gnu-blue); }
+.chat-welcome-icon svg{ width:40px; height:40px; }
+.to-top svg{ width:20px; height:20px; }
+
+/* 결과 갱신: 짝수/홀수 토글 클래스로 매번 페이드 인 (필터·정렬 변경 시 화면이 '갈아끼워지는' 느낌) */
+.results.fade-a, .results.fade-b{ animation:res-in .18s ease-out; }
+@keyframes res-in{ from{ opacity:.35; transform:translateY(4px) } to{ opacity:1; transform:none } }
+
+/* hover·포커스 반응 정리 */
+.result-card.v2{ transition:background .15s ease; }
+.group{ transition:box-shadow .18s ease; }
+.group:hover{ box-shadow:0 4px 16px rgba(67,82,90,.10); }
+.chip, .tag, .more, .seg .chip, .suggest-chip, .home-ex, .followup-chip{ transition:background .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease, transform .15s ease; }
+.suggest-chip:active, .home-ex:active, .tag:active, .chip:active{ transform:scale(.97); }
+.to-top{ transition:opacity .2s ease, transform .2s ease, background .15s ease, right .22s ease; }
+@media (prefers-reduced-motion: reduce){
+  .results.fade-a, .results.fade-b, .modal{ animation:none !important; }
+  *{ transition-duration:.01ms !important; }
+}
