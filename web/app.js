@@ -931,6 +931,27 @@ runSearch = async function (query) {  // eslint-disable-line no-func-assign
   if (!_restoringFromUrl) syncUrlFromState(query, true);
 };
 
+// ===================== [T39] 로고·제목 클릭 → 검색 초기화 + 첫 화면 =====================
+function resetToHome() {
+  state.lastQuery = ""; state.sources = []; state.categories = [];
+  state.includeRepealed = false; state.recentOnly = false; state.sort = "relevance";
+  el.input.value = ""; if (el.askInput) el.askInput.value = "";
+  const r = document.getElementById("include-repealed"); if (r) r.checked = false;
+  const c = document.getElementById("recent-only"); if (c) c.checked = false;
+  const s = document.getElementById("sort-select"); if (s) s.value = "relevance";
+  const panel = document.getElementById("filter-more-panel"), moreBtn = document.getElementById("filter-more");
+  if (panel) panel.classList.add("hidden"); if (moreBtn) { moreBtn.classList.remove("open"); moreBtn.setAttribute("aria-expanded", "false"); }
+  renderSourceChips(); renderCategoryChips(); renderApplied();
+  el.results.innerHTML = ""; el.statusArea.innerHTML = "";
+  setMode("search");
+  closeModal();
+  history.pushState({}, "", window.location.pathname);   // ?q=… 제거 (뒤로가기로 이전 검색 복귀 가능)
+  renderPopular();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  el.input.focus({ preventScroll: true });
+}
+document.querySelectorAll(".js-home").forEach((a) => a.addEventListener("click", (e) => { e.preventDefault(); resetToHome(); }));
+
 // ===================== [T36] 결과 없음/오류 화면의 액션 버튼 =====================
 el.results.addEventListener("click", (e) => {
   if (e.target.closest(".btn-clear-filters")) {

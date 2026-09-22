@@ -1091,3 +1091,9 @@ mark, .result-card.v2 mark, .group-h mark{ background:#fff3a0; color:inherit; fo
   .results.fade-a, .results.fade-b, .modal{ animation:none !important; }
   *{ transition-duration:.01ms !important; }
 }
+
+/* [T39] 로고·제목 클릭 → 첫 화면 */
+.brand-home{ display:inline-flex; align-items:center; gap:14px; color:inherit; text-decoration:none; }
+.brand-home:hover .brand-title{ text-decoration:underline; text-decoration-thickness:2px; text-underline-offset:4px; }
+.brand-logo{ display:inline-block; border-radius:8px; }
+.brand-logo:hover img{ opacity:.85; }
