@@ -135,6 +135,7 @@ class ChunkDetailResponse(BaseModel):
     revision_type: str = ""
     rule_no: str = ""
     status: str = "현행"
+    rulebook_page: Optional[int] = None  # [T41] 산학협력단 규정: 자체 변환 PDF에서 이 조항이 시작되는 페이지
 
 
 class AskRequest(BaseModel):
@@ -181,6 +182,7 @@ class RegulationDetailResponse(BaseModel):
     revision_type: str = ""
     rule_no: str = ""
     status: str = "현행"
+    rulebook_page: Optional[int] = None  # [T41] 산학협력단 규정집 자체 변환 PDF에서 이 규정이 시작되는 페이지
     full_text: str
 
 
@@ -582,6 +584,7 @@ def get_chunk_detail(chunk_id: str):
         "revision_type": reg_meta.get("revision_type", ""),
         "rule_no": reg_meta.get("rule_no", ""),
         "status": reg_meta.get("status", "현행"),
+        "rulebook_page": reg_meta.get("rulebook_page"),
     }
 
 

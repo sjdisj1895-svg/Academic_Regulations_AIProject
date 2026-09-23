@@ -29,3 +29,6 @@ data/rag_logs/
 .DS_Store
 Thumbs.db
 .vscode/
+
+# hwpx2pdf(Java) 빌드 산출물 - pom.xml/src만 저장소에 두고 target/은 mvn package로 재생성
+tools/hwpx2pdf/target/

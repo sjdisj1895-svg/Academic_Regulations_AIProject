@@ -792,9 +792,13 @@ el.tabFull.addEventListener("click", async () => {
 function siteLinkLabel(source) {
   return source === "산학협력단" ? "규정집 원문 파일로 이동 ↗" : "관련 사이트로 이동 ↗";
 }
-const FOUNDATION_NOTE = "이 규정은 산학협력단 규정집(전체 문서) 안의 한 조항입니다. " +
-  "산학협력단 규정은 개별 페이지가 없어, 위 '규정집 원문 파일로 이동'은 63개 규정이 모두 담긴 전체 문서로 연결됩니다. " +
-  "원문에서는 이 조항을 직접 찾아야 할 수 있습니다.";
+// [T41] rulebook_page: 자체 변환한 PDF 기준으로 이 규정이 시작되는 쪽수(참고용 안내일 뿐,
+// 아래 '규정집 원문 파일로 이동' 링크는 여전히 원본 게시글로 연결된다 — 링크 자체는 바꾸지 않음)
+function foundationNote(rulebookPage) {
+  const pageInfo = rulebookPage ? ` (규정집 기준 약 ${rulebookPage}쪽에 있습니다)` : "";
+  return "이 규정은 산학협력단 규정집(전체 문서) 안의 한 조항입니다" + pageInfo + ". " +
+    "산학협력단 규정은 개별 페이지가 없어, 위 '규정집 원문 파일로 이동'은 63개 규정이 모두 담긴 전체 문서로 연결됩니다.";
+}
 
 async function loadModalContent() {
   try {
@@ -809,7 +813,7 @@ async function loadModalContent() {
       el.modalSiteLink.href = c.source_url;
       el.modalSiteLink.textContent = siteLinkLabel(c.source);
       if (el.modalNote) el.modalNote.classList.toggle("hidden", c.source !== "산학협력단");
-      if (el.modalNote && c.source === "산학협력단") el.modalNote.textContent = FOUNDATION_NOTE;
+      if (el.modalNote && c.source === "산학협력단") el.modalNote.textContent = foundationNote(c.rulebook_page);
     } else {
       const r = await apiGet(`/api/regulations/${encodeURIComponent(modalState.regId)}`);
       el.modalBadge.textContent = r.source;
@@ -819,7 +823,7 @@ async function loadModalContent() {
       el.modalSiteLink.href = r.source_url;
       el.modalSiteLink.textContent = siteLinkLabel(r.source);
       if (el.modalNote) el.modalNote.classList.toggle("hidden", r.source !== "산학협력단");
-      if (el.modalNote && r.source === "산학협력단") el.modalNote.textContent = FOUNDATION_NOTE;
+      if (el.modalNote && r.source === "산학협력단") el.modalNote.textContent = foundationNote(r.rulebook_page);
       // [T25] 규정 전문에서 "지금 보고 있던 조항"을 하이라이트하고 그 위치로 자동 스크롤한다.
       // (AI 답변의 근거 조항을 전문 안에서 바로 확인할 수 있게 — 이전엔 전문을 직접 뒤져야 했다)
       renderFullTextWithHighlight(r.full_text, modalState.chunkId);
