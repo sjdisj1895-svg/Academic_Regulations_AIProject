@@ -39,9 +39,10 @@ import java.util.Map;
  *
  * 사용법: java -jar hwpx2pdf.jar <입력.hwpx> <출력.pdf> <글꼴.ttf> [<규정명목록.txt> <페이지맵출력.json>]
  *
- * 뒤 두 인자를 주면, 문서를 조판하는 동안 각 줄의 규정명과 정확히 일치하는(첫 등장) 문단을 만났을 때
- * 그 시점의 PDF 페이지 번호를 기록해 JSON({"규정명": 페이지번호, ...})으로 저장한다. 목차(표 셀)
- * 안의 언급은 제외되고, 실제 규정 본문 제목 문단(표가 아닌 일반 문단)만 매칭 대상이 된다.
+ * 뒤 두 인자를 주면, 문서 맨 앞 목차 표(1열=번호+규정명, 2열=시작쪽수)를 읽어 각 줄의 규정명과
+ * 정확히 일치하는 항목의 "원본 문서 기준" 쪽수를 JSON({"규정명": 페이지번호, ...})으로 저장한다.
+ * 우리가 다시 조판한 PDF 안에서의 위치가 아니라, 사용자가 실제로 열어보는 원본 문서(첨부파일)의
+ * 쪽수를 그대로 옮기는 것이 목적이다 — 재조판 결과는 폰트·줄바꿈이 달라 페이지 수가 다르다.
  */
 public class HwpxToPdf {
     private static final float MARGIN = 46f;
@@ -188,12 +189,6 @@ public class HwpxToPdf {
         String paraText = sanitize(text.toString(), font);
         if (!paraText.isEmpty()) {
             renderParagraphText(paraText);
-            if (pendingNames != null) {
-                String trimmed = paraText.trim();
-                if (pendingNames.remove(trimmed)) {
-                    foundPages.put(trimmed, doc.getNumberOfPages());
-                }
-            }
         }
         for (Table table : tables) {
             renderTable(table);
@@ -263,6 +258,26 @@ public class HwpxToPdf {
             maxCols = Math.max(maxCols, cols);
         }
         if (maxCols == 0) return;
+
+        // [T41] 목차 표라면(1열=규정명, 2열=시작쪽수) 여기서 "원본 문서 기준" 페이지 번호를 직접
+        // 읽어 기록한다. 우리가 다시 조판한 PDF에서의 위치(문단 렌더링 중 추적한 페이지)는 원본과
+        // 페이지 수·줄바꿈이 달라 실제로 사용자가 여는 원본 문서 쪽수와 어긋난다 — 목차 표 안의
+        // 페이지 숫자가 곧 원본 문서의 실제 쪽수이므로 이것을 그대로 신뢰한다.
+        if (pendingNames != null) {
+            for (List<String> row : grid) {
+                if (row.size() < 2) continue;
+                String nameCell = row.get(0).trim();
+                java.util.regex.Matcher m = java.util.regex.Pattern.compile("^\\d+\\.\\s*(.+)$", java.util.regex.Pattern.DOTALL).matcher(nameCell);
+                if (!m.matches()) continue;
+                String name = m.group(1).replaceAll("\\s+", " ").trim();
+                String pageCell = row.get(1).trim();
+                if (!pageCell.matches("\\d+")) continue;
+                int pageNum = Integer.parseInt(pageCell);
+                if (pendingNames.remove(name)) {
+                    foundPages.put(name, pageNum);
+                }
+            }
+        }
 
         float colWidth = usableWidth / maxCols;
 
