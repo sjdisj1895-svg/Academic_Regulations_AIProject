@@ -7,14 +7,18 @@
 
 결과: data/foundation/<규정명>.txt + data/progress_foundation.json
 """
+import html
 import json
 import os
 import re
 import sys
+import time
+import urllib.parse
+import urllib.request
 import zipfile
 
 sys.path.insert(0, os.path.dirname(__file__))
-from common import fetch, clean_text, safe_filename
+from common import fetch, clean_text, safe_filename, USER_AGENT
 
 BASE = "https://www.gnu.ac.kr"
 LIST_URL = f"{BASE}/research/na/ntt/selectNttList.do?mi=7117&bbsId=2456"
@@ -100,22 +104,19 @@ def parse_toc(paras):
         if m and re.search(r"(정관|규정|지침|예규|세칙|요령|규칙|법|시행령)\s*(\[[^\]]*\])?\s*$",
                            m.group(2)):
             name = re.sub(r"\s+", " ", m.group(2)).strip()
-            # 목차 항목은 표 형태(규정명 | 시작쪽수 | ~ | 끝쪽수 | 관리부서)라, hwpx_paragraphs가
-            # 셀을 문단 단위로 순서대로 뽑아오면서 이름 바로 다음 문단이 곧 시작쪽수가 된다.
-            # [T41] 여기서 원본 문서 쪽수를 함께 기록해두면, '규정집 원문 파일로 이동' 버튼이 여는
-            # 원본 첨부파일에서 실제로 몇 쪽에 있는지 안내할 수 있다(재조판한 PDF의 쪽수는 폰트·
-            # 줄바꿈이 달라 원본과 어긋나므로 쓰지 않는다).
-            page = None
-            if i + 1 < len(paras) and re.match(r"^\d+$", paras[i + 1]):
-                page = int(paras[i + 1])
             # 목차 항목 뒤쪽 문단(페이지, ~, 페이지, 관리부서)에서 부서 찾기
+            # (표 형태라 이름 바로 다음 문단은 "시작쪽수"이지만, 이건 문서 자체가 "인쇄한"
+            # 페이지 번호일 뿐이다 — 표지·목차 분량 때문에 실제 뷰어가 넘기는 물리적 페이지와는
+            # 다르고, 그 차이도 문서 전체에서 일정하지 않다(뒤쪽 첨부법령은 오히려 반대 방향으로
+            # 어긋남). 그래서 여기서는 쓰지 않고, get_viewer_page_map()이 실제 뷰어를 통해 직접
+            # 확인한 물리적 페이지를 rulebook_page로 쓴다.
             dept = ""
             for j in range(i + 1, min(i + 6, len(paras))):
                 if re.match(r"^[가-힣]+(과|실|센터|단)$", paras[j]):
                     dept = paras[j]
                     break
             toc.append({"no": int(m.group(1)), "name": name,
-                        "part": part, "department": dept, "page": page})
+                        "part": part, "department": dept})
             toc_end = i
     return toc, toc_end
 
@@ -130,6 +131,86 @@ def loose(s: str) -> str:
     s = re.sub(r"\[[^\]]*\]", "", s)
     s = normalize(s)
     return s.replace("산학협력단", "")
+
+
+# ------------------------------------------------- 3-1) 실제 뷰어 쪽수 확인
+VIEWER_BASE = "https://viewer.gnu.ac.kr/SynapDocViewServer"
+
+
+def get_viewer_page_map(att: dict, toc: list) -> dict:
+    """'규정집 원문 파일로 이동' 버튼이 실제로 여는 문서뷰어(Synap)에 이 HWPX를 변환 요청해,
+    각 규정명이 실제로 시작되는 물리적 쪽수를 알아낸다.
+
+    문서 자체의 목차에 인쇄된 쪽수는 표지·목차 분량만큼 뷰어의 실제 페이지 번호와 어긋나 있고,
+    그 어긋남조차 일정하지 않다(뒤쪽에 원문 그대로 첨부된 법령들은 반대 방향으로 어긋남).
+    그래서 뷰어가 쪽별로 내려주는 HTML(.files/N.html)을 하나씩 읽어, 각 규정명이 문단 맨 앞에
+    나오는 첫 페이지를 그대로 쓴다 — 사용자가 버튼을 눌러 실제로 보게 되는 페이지 번호와
+    반드시 일치하도록.
+    """
+    file_path = f"{BASE}/common/nttFileDownload.do?fileKey={att['fileKey']}"
+    body = urllib.parse.urlencode({
+        "fileType": "URL", "convertType": "0",
+        "filePath": file_path, "fid": att["fileKey"],
+    }).encode()
+    req = urllib.request.Request(f"{VIEWER_BASE}/jobJson", data=body,
+                                  headers={"User-Agent": USER_AGENT})
+    job = json.loads(urllib.request.urlopen(req, timeout=30).read().decode("utf-8", "replace"))
+    result_name = job["fileName"]
+
+    # 이미 변환된 파일이면 즉시 완료 상태로 나오지만, 새 파일이면 변환이 끝날 때까지 기다려야 한다.
+    for _ in range(40):
+        status = json.loads(fetch(f"{VIEWER_BASE}/status/{job['key']}?"))
+        if status.get("htmlDone"):
+            result_name = status.get("resultFileName") or result_name
+            break
+        time.sleep(3)
+    else:
+        raise RuntimeError("문서뷰어 변환이 시간 내에 끝나지 않았습니다")
+
+    files_base = f"{VIEWER_BASE}/result/{result_name}/{result_name}.files/"
+
+    remaining = [(item["name"], normalize(item["name"]), loose(item["name"])) for item in toc]
+    page_map = {}
+    page_heads = []  # 2차(유사도) 매칭용으로 지나온 쪽의 머리글을 보관
+    n = 0
+    while remaining:
+        n += 1
+        try:
+            raw = fetch(files_base + f"{n}.html")
+        except Exception:
+            break  # 문서 끝(더 이상 쪽이 없음)
+        text = html.unescape(re.sub(r"<[^>]+>", " ", raw))
+        head = re.sub(r"\s+", " ", text).strip()[:150]
+        head_norm, head_loose = normalize(head), loose(head)
+        page_heads.append((n, head, head_loose))
+        for item in remaining:
+            name, tgt_norm, tgt_loose = item
+            if head_norm.startswith(tgt_norm) or head_loose.startswith(tgt_loose):
+                page_map[name] = n
+                remaining.remove(item)
+                break
+        if n > 2000:  # 이상 상황 대비 안전장치
+            break
+
+    # 2차: 조사('의') 등 한두 글자 표기 차이는 유사도로 찾는다(split_rules()의 3차 판정과 동일한
+    # 기준: 앞부분 유사도 0.85 이상). 대상이 몇 건뿐이라 지나온 쪽 전체를 다시 훑어도 비용이 작다.
+    if remaining:
+        import difflib
+        for name, tgt_norm, tgt_loose in list(remaining):
+            best_ratio, best_page = 0.0, None
+            for n2, head, head_loose in page_heads:
+                ratio = difflib.SequenceMatcher(None, head_loose[:len(tgt_loose)],
+                                                 tgt_loose).ratio()
+                if ratio > best_ratio:
+                    best_ratio, best_page = ratio, n2
+            if best_ratio >= 0.85:
+                page_map[name] = best_page
+                remaining.remove((name, tgt_norm, tgt_loose))
+
+    if remaining:
+        print(f"    [경고] 뷰어에서 쪽수를 못 찾은 규정 {len(remaining)}건: "
+              f"{[r[0] for r in remaining]}")
+    return page_map
 
 
 def split_rules(paras, toc, toc_end):
@@ -232,6 +313,17 @@ def main():
         for name in missing:
             errors.append({"name": name, "error": "본문에서 규정 시작 위치를 찾지 못함"})
 
+        # [T41] 실제 뷰어에서 각 규정이 몇 쪽에 있는지 확인 ('원문 파일로 이동' 버튼이 여는
+        # 문서와 항상 일치하도록). 뷰어 접속이 실패해도 전체 수집을 막지는 않는다 — 이 경우
+        # rulebook_page 없이(페이지 안내만 빠진 채) 계속 진행한다.
+        try:
+            page_map = get_viewer_page_map(att, toc)
+            print(f"  뷰어에서 쪽수 확인: {len(page_map)}/{len(toc)}건")
+        except Exception as e:
+            page_map = {}
+            errors.append({"name": "(전체)", "error": f"뷰어 쪽수 확인 실패: {e}"})
+            print(f"  [오류] 뷰어 쪽수 확인 실패: {e}")
+
         meta = {"post_title": title, "post_url": post_url}
         results = []
         for rule in rules:
@@ -243,7 +335,7 @@ def main():
                 "contact": DEPT_CONTACTS.get(rule["department"],
                                              DEPT_CONTACTS["산학연구과"]),
                 "rule_no": "", "date": "", "source_url": post_url,
-                "law_url": "", "rulebook_page": rule.get("page"),
+                "law_url": "", "rulebook_page": page_map.get(rule["name"]),
                 # "/"로 저장 (리눅스 호환) — os.path.relpath가 Windows에서 "\\"를 반환하면
                 # 리눅스에서 경로 구분자로 인식되지 않아 파일을 못 찾는 문제가 생긴다.
                 "text_file": os.path.relpath(path, DATA_DIR).replace("\\", "/"),
