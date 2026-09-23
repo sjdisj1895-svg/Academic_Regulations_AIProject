@@ -1097,3 +1097,12 @@ mark, .result-card.v2 mark, .group-h mark{ background:#fff3a0; color:inherit; fo
 .brand-home:hover .brand-title{ text-decoration:underline; text-decoration-thickness:2px; text-underline-offset:4px; }
 .brand-logo{ display:inline-block; border-radius:8px; }
 .brand-logo:hover img{ opacity:.85; }
+
+/* [T40] 산학협력단 원문 안내 (모달 하단, 인쇄 시 숨김) */
+.modal-note{
+  margin:0 24px; padding:10px 14px; background:#fbf8f0; border:1px solid var(--gnu-gold);
+  border-radius:10px; font-size:12.5px; color:var(--gnu-grey); line-height:1.55;
+}
+.modal-note.hidden{ display:none; }
+@media print{ .modal-note{ display:none !important; } }
+@media (min-width:901px){ .modal-note{ margin:0 22px; } }

@@ -42,6 +42,7 @@ const el = {
   modalMeta: document.getElementById("modal-meta"),
   modalBody: document.getElementById("modal-body"),
   modalSiteLink: document.getElementById("modal-site-link"),
+  modalNote: document.getElementById("modal-note"),
   tabArticle: document.getElementById("tab-article"),
   tabFull: document.getElementById("tab-full"),
   modeTabs: document.getElementById("mode-tabs"),
@@ -747,7 +748,7 @@ function resultCardHtml(r, query) {
         <span class="dept">${formatDeptHtml(r.department, r.contact)}</span>
         <span class="acts">
           <button type="button" class="btn-preview linklike">미리보기</button>
-          <a href="${escapeHtml(r.source_url)}" target="_blank" rel="noopener">원문 ↗</a>
+          <a href="${escapeHtml(r.source_url)}" target="_blank" rel="noopener" title="${r.source === "산학협력단" ? "산학협력단 규정집 전체 문서로 이동합니다 (개별 규정 페이지 아님)" : ""}">${r.source === "산학협력단" ? "규정집 원문" : "원문"} ↗</a>
         </span>
       </div>
     </article>`;
@@ -785,6 +786,16 @@ el.tabFull.addEventListener("click", async () => {
   await loadModalContent();
 });
 
+// [T40] 산학협력단 규정은 law.go.kr 개별 페이지가 없어, 63건 전부 "규정집 게시글 하나"의
+// 같은 URL을 원문으로 쓴다. "관련 사이트로 이동"이라고만 하면 개별 규정 페이지로 오해할 수
+// 있어, 산학협력단일 때는 문구·안내를 다르게 한다 (대학 규정은 기존과 동일).
+function siteLinkLabel(source) {
+  return source === "산학협력단" ? "규정집 원문 파일로 이동 ↗" : "관련 사이트로 이동 ↗";
+}
+const FOUNDATION_NOTE = "이 규정은 산학협력단 규정집(전체 문서) 안의 한 조항입니다. " +
+  "산학협력단 규정은 개별 페이지가 없어, 위 '규정집 원문 파일로 이동'은 63개 규정이 모두 담긴 전체 문서로 연결됩니다. " +
+  "원문에서는 이 조항을 직접 찾아야 할 수 있습니다.";
+
 async function loadModalContent() {
   try {
     if (modalState.mode === "article") {
@@ -796,6 +807,9 @@ async function loadModalContent() {
         `${c.category}${c.status === "폐지" ? " · ⚠️ 폐지된 규정" : ""}${c.enforce_date ? ` · 시행 ${c.enforce_date}` : ""} · ${c.location}${c.article_title ? "(" + c.article_title + ")" : ""} · 담당부서: ${formatDeptText(c.department, c.contact)}`;
       el.modalBody.textContent = c.text;
       el.modalSiteLink.href = c.source_url;
+      el.modalSiteLink.textContent = siteLinkLabel(c.source);
+      if (el.modalNote) el.modalNote.classList.toggle("hidden", c.source !== "산학협력단");
+      if (el.modalNote && c.source === "산학협력단") el.modalNote.textContent = FOUNDATION_NOTE;
     } else {
       const r = await apiGet(`/api/regulations/${encodeURIComponent(modalState.regId)}`);
       el.modalBadge.textContent = r.source;
@@ -803,6 +817,9 @@ async function loadModalContent() {
       el.modalTitle.textContent = r.name;
       el.modalMeta.textContent = `${r.category}${r.status === "폐지" ? " · ⚠️ 폐지된 규정" : ""}${r.enforce_date ? ` · 시행 ${r.enforce_date}${r.revision_type ? "(" + r.revision_type + ")" : ""}` : ""}${r.rule_no ? ` · ${r.rule_no}` : ""} · 담당부서: ${formatDeptText(r.department, r.contact)}`;
       el.modalSiteLink.href = r.source_url;
+      el.modalSiteLink.textContent = siteLinkLabel(r.source);
+      if (el.modalNote) el.modalNote.classList.toggle("hidden", r.source !== "산학협력단");
+      if (el.modalNote && r.source === "산학협력단") el.modalNote.textContent = FOUNDATION_NOTE;
       // [T25] 규정 전문에서 "지금 보고 있던 조항"을 하이라이트하고 그 위치로 자동 스크롤한다.
       // (AI 답변의 근거 조항을 전문 안에서 바로 확인할 수 있게 — 이전엔 전문을 직접 뒤져야 했다)
       renderFullTextWithHighlight(r.full_text, modalState.chunkId);
