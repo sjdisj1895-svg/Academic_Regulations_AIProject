@@ -792,10 +792,16 @@ el.tabFull.addEventListener("click", async () => {
 function siteLinkLabel(source) {
   return source === "산학협력단" ? "규정집 원문 파일로 이동 ↗" : "관련 사이트로 이동 ↗";
 }
-// [T41] rulebook_page: 자체 변환한 PDF 기준으로 이 규정이 시작되는 쪽수(참고용 안내일 뿐,
-// 아래 '규정집 원문 파일로 이동' 링크는 여전히 원본 게시글로 연결된다 — 링크 자체는 바꾸지 않음)
-function foundationNote(rulebookPage) {
-  const pageInfo = rulebookPage ? ` (규정집 기준 약 ${rulebookPage}쪽에 있습니다)` : "";
+// [T41] rulebook_page/rulebook_page_end: 규정집 목차에 인쇄된 이 규정의 쪽수 범위(문서 하단에
+// 찍히는 실제 쪽번호와 동일). 조항 하나하나의 정확한 쪽수는 문서 어디에도 없어 범위로만 안내한다.
+// 아래 '규정집 원문 파일로 이동' 링크는 여전히 원본 게시글로 연결된다 — 링크 자체는 바꾸지 않음.
+function foundationNote(rulebookPage, rulebookPageEnd) {
+  let pageInfo = "";
+  if (rulebookPage && rulebookPageEnd) {
+    pageInfo = ` (규정집 기준 ${rulebookPage}~${rulebookPageEnd}쪽 사이에 있습니다)`;
+  } else if (rulebookPage) {
+    pageInfo = ` (규정집 기준 ${rulebookPage}쪽부터입니다)`;
+  }
   return "이 규정은 산학협력단 규정집(전체 문서) 안의 한 조항입니다" + pageInfo + ". " +
     "산학협력단 규정은 개별 페이지가 없어, 위 '규정집 원문 파일로 이동'은 63개 규정이 모두 담긴 전체 문서로 연결됩니다.";
 }
@@ -813,7 +819,7 @@ async function loadModalContent() {
       el.modalSiteLink.href = c.source_url;
       el.modalSiteLink.textContent = siteLinkLabel(c.source);
       if (el.modalNote) el.modalNote.classList.toggle("hidden", c.source !== "산학협력단");
-      if (el.modalNote && c.source === "산학협력단") el.modalNote.textContent = foundationNote(c.rulebook_page);
+      if (el.modalNote && c.source === "산학협력단") el.modalNote.textContent = foundationNote(c.rulebook_page, c.rulebook_page_end);
     } else {
       const r = await apiGet(`/api/regulations/${encodeURIComponent(modalState.regId)}`);
       el.modalBadge.textContent = r.source;
@@ -823,7 +829,7 @@ async function loadModalContent() {
       el.modalSiteLink.href = r.source_url;
       el.modalSiteLink.textContent = siteLinkLabel(r.source);
       if (el.modalNote) el.modalNote.classList.toggle("hidden", r.source !== "산학협력단");
-      if (el.modalNote && r.source === "산학협력단") el.modalNote.textContent = foundationNote(r.rulebook_page);
+      if (el.modalNote && r.source === "산학협력단") el.modalNote.textContent = foundationNote(r.rulebook_page, r.rulebook_page_end);
       // [T25] 규정 전문에서 "지금 보고 있던 조항"을 하이라이트하고 그 위치로 자동 스크롤한다.
       // (AI 답변의 근거 조항을 전문 안에서 바로 확인할 수 있게 — 이전엔 전문을 직접 뒤져야 했다)
       renderFullTextWithHighlight(r.full_text, modalState.chunkId);

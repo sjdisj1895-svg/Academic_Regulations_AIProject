@@ -135,7 +135,10 @@ class ChunkDetailResponse(BaseModel):
     revision_type: str = ""
     rule_no: str = ""
     status: str = "현행"
-    rulebook_page: Optional[int] = None  # [T41] 산학협력단 규정: 자체 변환 PDF에서 이 조항이 시작되는 페이지
+    # [T41] 산학협력단 규정: 규정집 목차에 인쇄된 이 규정의 쪽수 범위(조항 단위 쪽수는 문서에
+    # 없어 규정 전체 범위로 안내한다)
+    rulebook_page: Optional[int] = None
+    rulebook_page_end: Optional[int] = None
 
 
 class AskRequest(BaseModel):
@@ -182,7 +185,8 @@ class RegulationDetailResponse(BaseModel):
     revision_type: str = ""
     rule_no: str = ""
     status: str = "현행"
-    rulebook_page: Optional[int] = None  # [T41] 산학협력단 규정집 자체 변환 PDF에서 이 규정이 시작되는 페이지
+    rulebook_page: Optional[int] = None  # [T41] 산학협력단 규정집 목차에 인쇄된 이 규정의 쪽수 범위
+    rulebook_page_end: Optional[int] = None
     full_text: str
 
 
@@ -585,6 +589,7 @@ def get_chunk_detail(chunk_id: str):
         "rule_no": reg_meta.get("rule_no", ""),
         "status": reg_meta.get("status", "현행"),
         "rulebook_page": reg_meta.get("rulebook_page"),
+        "rulebook_page_end": reg_meta.get("rulebook_page_end"),
     }
 
 

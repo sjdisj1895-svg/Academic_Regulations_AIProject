@@ -6186,7 +6186,8 @@
   "revision_date": "2025-07-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 6
+  "rulebook_page": 1,
+  "rulebook_page_end": 7
  },
  {
   "id": "산학:2",
@@ -6204,7 +6205,8 @@
   "revision_date": "2025-10-21",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 13
+  "rulebook_page": 8,
+  "rulebook_page_end": 16
  },
  {
   "id": "산학:3",
@@ -6222,7 +6224,8 @@
   "revision_date": "2021-03-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 22
+  "rulebook_page": 17,
+  "rulebook_page_end": 33
  },
  {
   "id": "산학:4",
@@ -6240,7 +6243,8 @@
   "revision_date": "2022-09-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 39
+  "rulebook_page": 34,
+  "rulebook_page_end": 51
  },
  {
   "id": "산학:5",
@@ -6258,7 +6262,8 @@
   "revision_date": "2025-07-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 57
+  "rulebook_page": 52,
+  "rulebook_page_end": 54
  },
  {
   "id": "산학:6",
@@ -6276,7 +6281,8 @@
   "revision_date": "2025-02-28",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 60
+  "rulebook_page": 55,
+  "rulebook_page_end": 59
  },
  {
   "id": "산학:7",
@@ -6294,7 +6300,8 @@
   "revision_date": "2025-07-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 65
+  "rulebook_page": 60,
+  "rulebook_page_end": 62
  },
  {
   "id": "산학:8",
@@ -6312,7 +6319,8 @@
   "revision_date": "2022-09-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 68
+  "rulebook_page": 63,
+  "rulebook_page_end": 69
  },
  {
   "id": "산학:9",
@@ -6330,7 +6338,8 @@
   "revision_date": "2022-09-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 75
+  "rulebook_page": 70,
+  "rulebook_page_end": 75
  },
  {
   "id": "산학:10",
@@ -6348,7 +6357,8 @@
   "revision_date": "2022-03-21",
   "revision_type": "제정",
   "status": "현행",
-  "rulebook_page": 81
+  "rulebook_page": 76,
+  "rulebook_page_end": 90
  },
  {
   "id": "산학:11",
@@ -6366,7 +6376,8 @@
   "revision_date": "2022-03-21",
   "revision_type": "제정",
   "status": "현행",
-  "rulebook_page": 96
+  "rulebook_page": 91,
+  "rulebook_page_end": 94
  },
  {
   "id": "산학:12",
@@ -6384,7 +6395,8 @@
   "revision_date": "2025-03-18",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 100
+  "rulebook_page": 95,
+  "rulebook_page_end": 105
  },
  {
   "id": "산학:13",
@@ -6402,7 +6414,8 @@
   "revision_date": "2024-11-27",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 107
+  "rulebook_page": 106,
+  "rulebook_page_end": 106
  },
  {
   "id": "산학:14",
@@ -6420,7 +6433,8 @@
   "revision_date": "2021-11-19",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 108
+  "rulebook_page": 107,
+  "rulebook_page_end": 108
  },
  {
   "id": "산학:15",
@@ -6438,7 +6452,8 @@
   "revision_date": "2026-01-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 110
+  "rulebook_page": 109,
+  "rulebook_page_end": 118
  },
  {
   "id": "산학:16",
@@ -6456,7 +6471,8 @@
   "revision_date": "2025-02-19",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 120
+  "rulebook_page": 119,
+  "rulebook_page_end": 130
  },
  {
   "id": "산학:17",
@@ -6474,7 +6490,8 @@
   "revision_date": "2022-09-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 133
+  "rulebook_page": 132,
+  "rulebook_page_end": 135
  },
  {
   "id": "산학:18",
@@ -6492,7 +6509,8 @@
   "revision_date": "2025-07-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 137
+  "rulebook_page": 136,
+  "rulebook_page_end": 137
  },
  {
   "id": "산학:19",
@@ -6510,7 +6528,8 @@
   "revision_date": "2025-07-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 139
+  "rulebook_page": 138,
+  "rulebook_page_end": 140
  },
  {
   "id": "산학:20",
@@ -6528,7 +6547,8 @@
   "revision_date": "2022-09-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 142
+  "rulebook_page": 141,
+  "rulebook_page_end": 147
  },
  {
   "id": "산학:21",
@@ -6546,7 +6566,8 @@
   "revision_date": "2021-03-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 149
+  "rulebook_page": 148,
+  "rulebook_page_end": 150
  },
  {
   "id": "산학:22",
@@ -6564,7 +6585,8 @@
   "revision_date": "2024-10-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 152
+  "rulebook_page": 151,
+  "rulebook_page_end": 160
  },
  {
   "id": "산학:23",
@@ -6582,7 +6604,8 @@
   "revision_date": "2021-03-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 162
+  "rulebook_page": 161,
+  "rulebook_page_end": 165
  },
  {
   "id": "산학:24",
@@ -6600,7 +6623,8 @@
   "revision_date": "2025-09-30",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 167
+  "rulebook_page": 166,
+  "rulebook_page_end": 172
  },
  {
   "id": "산학:25",
@@ -6618,7 +6642,8 @@
   "revision_date": "2023-06-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 174
+  "rulebook_page": 173,
+  "rulebook_page_end": 199
  },
  {
   "id": "산학:26",
@@ -6636,7 +6661,8 @@
   "revision_date": "2024-10-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 188
+  "rulebook_page": 200,
+  "rulebook_page_end": 201
  },
  {
   "id": "산학:27",
@@ -6654,7 +6680,8 @@
   "revision_date": "2024-10-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 190
+  "rulebook_page": 202,
+  "rulebook_page_end": 205
  },
  {
   "id": "산학:28",
@@ -6672,7 +6699,8 @@
   "revision_date": "2024-10-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 194
+  "rulebook_page": 206,
+  "rulebook_page_end": 207
  },
  {
   "id": "산학:29",
@@ -6690,7 +6718,8 @@
   "revision_date": "2025-10-31",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 196
+  "rulebook_page": 208,
+  "rulebook_page_end": 216
  },
  {
   "id": "산학:30",
@@ -6708,7 +6737,8 @@
   "revision_date": "2024-10-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 205
+  "rulebook_page": 217,
+  "rulebook_page_end": 220
  },
  {
   "id": "산학:31",
@@ -6726,7 +6756,8 @@
   "revision_date": "2024-10-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 209
+  "rulebook_page": 221,
+  "rulebook_page_end": 229
  },
  {
   "id": "산학:32",
@@ -6744,7 +6775,8 @@
   "revision_date": "2025-12-15",
   "revision_type": "제정",
   "status": "현행",
-  "rulebook_page": 217
+  "rulebook_page": 230,
+  "rulebook_page_end": 238
  },
  {
   "id": "산학:33",
@@ -6762,7 +6794,8 @@
   "revision_date": "2024-10-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 226
+  "rulebook_page": 239,
+  "rulebook_page_end": 246
  },
  {
   "id": "산학:34",
@@ -6780,7 +6813,8 @@
   "revision_date": "2021-11-12",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 234
+  "rulebook_page": 247,
+  "rulebook_page_end": 252
  },
  {
   "id": "산학:35",
@@ -6798,7 +6832,8 @@
   "revision_date": "2022-09-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 239
+  "rulebook_page": 253,
+  "rulebook_page_end": 254
  },
  {
   "id": "산학:36",
@@ -6816,7 +6851,8 @@
   "revision_date": "2022-09-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 241
+  "rulebook_page": 255,
+  "rulebook_page_end": 258
  },
  {
   "id": "산학:37",
@@ -6834,7 +6870,8 @@
   "revision_date": "2022-09-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 245
+  "rulebook_page": 259,
+  "rulebook_page_end": 262
  },
  {
   "id": "산학:38",
@@ -6852,7 +6889,8 @@
   "revision_date": "2021-03-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 249
+  "rulebook_page": 263,
+  "rulebook_page_end": 271
  },
  {
   "id": "산학:39",
@@ -6870,7 +6908,8 @@
   "revision_date": "2024-10-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 258
+  "rulebook_page": 272,
+  "rulebook_page_end": 319
  },
  {
   "id": "산학:40",
@@ -6888,7 +6927,8 @@
   "revision_date": "2025-07-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 305
+  "rulebook_page": 320,
+  "rulebook_page_end": 331
  },
  {
   "id": "산학:41",
@@ -6906,7 +6946,8 @@
   "revision_date": "2024-01-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 317
+  "rulebook_page": 332,
+  "rulebook_page_end": 339
  },
  {
   "id": "산학:42",
@@ -6924,7 +6965,8 @@
   "revision_date": "2025-02-28",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 325
+  "rulebook_page": 340,
+  "rulebook_page_end": 348
  },
  {
   "id": "산학:43",
@@ -6942,7 +6984,8 @@
   "revision_date": "2024-01-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 334
+  "rulebook_page": 349,
+  "rulebook_page_end": 354
  },
  {
   "id": "산학:44",
@@ -6960,7 +7003,8 @@
   "revision_date": "2022-09-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 340
+  "rulebook_page": 355,
+  "rulebook_page_end": 356
  },
  {
   "id": "산학:45",
@@ -6978,7 +7022,8 @@
   "revision_date": "2025-02-28",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 342
+  "rulebook_page": 357,
+  "rulebook_page_end": 359
  },
  {
   "id": "산학:46",
@@ -6996,7 +7041,8 @@
   "revision_date": "",
   "revision_type": "",
   "status": "현행",
-  "rulebook_page": 345
+  "rulebook_page": 360,
+  "rulebook_page_end": 361
  },
  {
   "id": "산학:47",
@@ -7014,7 +7060,8 @@
   "revision_date": "2022-10-26",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 347
+  "rulebook_page": 362,
+  "rulebook_page_end": 385
  },
  {
   "id": "산학:48",
@@ -7032,7 +7079,8 @@
   "revision_date": "2022-09-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 368
+  "rulebook_page": 386,
+  "rulebook_page_end": 393
  },
  {
   "id": "산학:49",
@@ -7050,7 +7098,8 @@
   "revision_date": "2022-09-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 376
+  "rulebook_page": 394,
+  "rulebook_page_end": 399
  },
  {
   "id": "산학:50",
@@ -7068,7 +7117,8 @@
   "revision_date": "2022-09-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 382
+  "rulebook_page": 400,
+  "rulebook_page_end": 403
  },
  {
   "id": "산학:51",
@@ -7086,7 +7136,8 @@
   "revision_date": "2025-12-29",
   "revision_type": "제정",
   "status": "현행",
-  "rulebook_page": 386
+  "rulebook_page": 404,
+  "rulebook_page_end": 407
  },
  {
   "id": "산학:52",
@@ -7104,7 +7155,8 @@
   "revision_date": "2025-12-29",
   "revision_type": "제정",
   "status": "현행",
-  "rulebook_page": 390
+  "rulebook_page": 408,
+  "rulebook_page_end": 426
  },
  {
   "id": "산학:53",
@@ -7122,7 +7174,8 @@
   "revision_date": "2021-03-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 409
+  "rulebook_page": 427,
+  "rulebook_page_end": 430
  },
  {
   "id": "산학:54",
@@ -7140,7 +7193,8 @@
   "revision_date": "2022-09-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 413
+  "rulebook_page": 431,
+  "rulebook_page_end": 435
  },
  {
   "id": "산학:55",
@@ -7158,7 +7212,8 @@
   "revision_date": "2021-03-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 418
+  "rulebook_page": 436,
+  "rulebook_page_end": 438
  },
  {
   "id": "산학:56",
@@ -7176,7 +7231,8 @@
   "revision_date": "2026-03-24",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 421
+  "rulebook_page": 439,
+  "rulebook_page_end": 442
  },
  {
   "id": "산학:57",
@@ -7194,7 +7250,8 @@
   "revision_date": "2021-05-10",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 425
+  "rulebook_page": 443,
+  "rulebook_page_end": 445
  },
  {
   "id": "산학:58",
@@ -7212,7 +7269,8 @@
   "revision_date": "2022-09-01",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 428
+  "rulebook_page": 446,
+  "rulebook_page_end": 449
  },
  {
   "id": "산학:59",
@@ -7230,7 +7288,8 @@
   "revision_date": "",
   "revision_type": "",
   "status": "현행",
-  "rulebook_page": 432
+  "rulebook_page": 450,
+  "rulebook_page_end": 456
  },
  {
   "id": "산학:60",
@@ -7248,7 +7307,8 @@
   "revision_date": "2022-01-06",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 439
+  "rulebook_page": 457,
+  "rulebook_page_end": 470
  },
  {
   "id": "산학:61",
@@ -7266,7 +7326,8 @@
   "revision_date": "2024-04-30",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 453
+  "rulebook_page": 471,
+  "rulebook_page_end": 495
  },
  {
   "id": "산학:62",
@@ -7284,7 +7345,8 @@
   "revision_date": "2025-12-18",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 478
+  "rulebook_page": 496,
+  "rulebook_page_end": 525
  },
  {
   "id": "산학:63",
@@ -7302,6 +7364,7 @@
   "revision_date": "2024-09-27",
   "revision_type": "개정",
   "status": "현행",
-  "rulebook_page": 508
+  "rulebook_page": 526,
+  "rulebook_page_end": 530
  }
 ]
