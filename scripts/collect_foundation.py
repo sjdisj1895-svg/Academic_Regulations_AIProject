@@ -100,6 +100,14 @@ def parse_toc(paras):
         if m and re.search(r"(정관|규정|지침|예규|세칙|요령|규칙|법|시행령)\s*(\[[^\]]*\])?\s*$",
                            m.group(2)):
             name = re.sub(r"\s+", " ", m.group(2)).strip()
+            # 목차 항목은 표 형태(규정명 | 시작쪽수 | ~ | 끝쪽수 | 관리부서)라, hwpx_paragraphs가
+            # 셀을 문단 단위로 순서대로 뽑아오면서 이름 바로 다음 문단이 곧 시작쪽수가 된다.
+            # [T41] 여기서 원본 문서 쪽수를 함께 기록해두면, '규정집 원문 파일로 이동' 버튼이 여는
+            # 원본 첨부파일에서 실제로 몇 쪽에 있는지 안내할 수 있다(재조판한 PDF의 쪽수는 폰트·
+            # 줄바꿈이 달라 원본과 어긋나므로 쓰지 않는다).
+            page = None
+            if i + 1 < len(paras) and re.match(r"^\d+$", paras[i + 1]):
+                page = int(paras[i + 1])
             # 목차 항목 뒤쪽 문단(페이지, ~, 페이지, 관리부서)에서 부서 찾기
             dept = ""
             for j in range(i + 1, min(i + 6, len(paras))):
@@ -107,7 +115,7 @@ def parse_toc(paras):
                     dept = paras[j]
                     break
             toc.append({"no": int(m.group(1)), "name": name,
-                        "part": part, "department": dept})
+                        "part": part, "department": dept, "page": page})
             toc_end = i
     return toc, toc_end
 
@@ -235,7 +243,7 @@ def main():
                 "contact": DEPT_CONTACTS.get(rule["department"],
                                              DEPT_CONTACTS["산학연구과"]),
                 "rule_no": "", "date": "", "source_url": post_url,
-                "law_url": "",
+                "law_url": "", "rulebook_page": rule.get("page"),
                 # "/"로 저장 (리눅스 호환) — os.path.relpath가 Windows에서 "\\"를 반환하면
                 # 리눅스에서 경로 구분자로 인식되지 않아 파일을 못 찾는 문제가 생긴다.
                 "text_file": os.path.relpath(path, DATA_DIR).replace("\\", "/"),
