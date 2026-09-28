@@ -528,6 +528,22 @@ body {
 .modal-header h2 { font-size: 18px; margin: 8px 0 6px; color: var(--color-primary); font-weight: 800; }
 .modal-meta { font-size: 13px; color: var(--color-text-sub); }
 
+/* [담당자 연락처 강조] 시행일 등과 한 줄에 섞여 있던 담당부서/전화번호를 별도 칩으로 분리해
+   눈에 잘 띄게 한다 — 전화번호는 굵게 + 아이콘 + 클릭 시 바로 전화 연결(tel:) */
+.modal-contact {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-top: 10px; padding: 8px 12px;
+  background: var(--blue-16); border-radius: 8px;
+}
+.modal-contact-dept { font-size: 13px; font-weight: 700; color: var(--gnu-grey); }
+.modal-contact-tel {
+  display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+  font-size: 14px; font-weight: 800; color: var(--gnu-blue-deep);
+  text-decoration: none;
+}
+.modal-contact-tel:hover { text-decoration: underline; }
+.modal-contact-tel svg { width: 15px; height: 15px; flex-shrink: 0; }
+
 .modal-tabs { display: flex; gap: 4px; padding: 10px 24px 0; }
 .tab-btn {
   border: none; background: transparent; padding: 8px 14px;

@@ -40,6 +40,7 @@ const el = {
   modalBadge: document.getElementById("modal-badge"),
   modalTitle: document.getElementById("modal-title"),
   modalMeta: document.getElementById("modal-meta"),
+  modalContact: document.getElementById("modal-contact"),
   modalBody: document.getElementById("modal-body"),
   modalSiteLink: document.getElementById("modal-site-link"),
   modalNote: document.getElementById("modal-note"),
@@ -311,6 +312,19 @@ function formatDeptHtml(department, contact) {
 function formatDeptText(department, contact) {
   const d = parseDept(department, contact);
   return `${d.primary}${d.parent ? ` (${d.parent})` : ""}${d.phone ? ` · ${d.phone}` : d.raw ? ` · ${d.raw}` : ""}`;
+}
+
+// [담당자 연락처 강조] 미리보기 상단에서 부서/전화번호를 눈에 잘 띄는 별도 칩으로 보여준다
+// (기존엔 시행일 등 다른 정보와 한 줄에 섞여 있어 전화번호가 잘 안 보였음)
+function formatDeptContactHtml(department, contact) {
+  const d = parseDept(department, contact);
+  const parts = [`<span class="modal-contact-dept">${escapeHtml(d.primary)}${d.parent ? ` (${escapeHtml(d.parent)})` : ""}</span>`];
+  if (d.phone) {
+    parts.push(`<a class="modal-contact-tel" href="tel:${d.phone}">${ICON.phone}${d.phone}</a>`);
+  } else if (d.raw) {
+    parts.push(`<span class="modal-contact-tel">${escapeHtml(d.raw)}</span>`);
+  }
+  return parts.join("");
 }
 
 // ===================== 검색 실행 =====================
@@ -814,7 +828,8 @@ async function loadModalContent() {
       el.modalBadge.className = "badge " + badgeForSource(c.source);
       el.modalTitle.textContent = c.name;
       el.modalMeta.textContent =
-        `${c.category}${c.status === "폐지" ? " · ⚠️ 폐지된 규정" : ""}${c.enforce_date ? ` · 시행 ${c.enforce_date}` : ""} · ${c.location}${c.article_title ? "(" + c.article_title + ")" : ""} · 담당부서: ${formatDeptText(c.department, c.contact)}`;
+        `${c.category}${c.status === "폐지" ? " · ⚠️ 폐지된 규정" : ""}${c.enforce_date ? ` · 시행 ${c.enforce_date}` : ""} · ${c.location}${c.article_title ? "(" + c.article_title + ")" : ""}`;
+      if (el.modalContact) el.modalContact.innerHTML = formatDeptContactHtml(c.department, c.contact);
       el.modalBody.textContent = c.text;
       el.modalSiteLink.href = c.source_url;
       el.modalSiteLink.textContent = siteLinkLabel(c.source);
@@ -825,7 +840,8 @@ async function loadModalContent() {
       el.modalBadge.textContent = r.source;
       el.modalBadge.className = "badge " + badgeForSource(r.source);
       el.modalTitle.textContent = r.name;
-      el.modalMeta.textContent = `${r.category}${r.status === "폐지" ? " · ⚠️ 폐지된 규정" : ""}${r.enforce_date ? ` · 시행 ${r.enforce_date}${r.revision_type ? "(" + r.revision_type + ")" : ""}` : ""}${r.rule_no ? ` · ${r.rule_no}` : ""} · 담당부서: ${formatDeptText(r.department, r.contact)}`;
+      el.modalMeta.textContent = `${r.category}${r.status === "폐지" ? " · ⚠️ 폐지된 규정" : ""}${r.enforce_date ? ` · 시행 ${r.enforce_date}${r.revision_type ? "(" + r.revision_type + ")" : ""}` : ""}${r.rule_no ? ` · ${r.rule_no}` : ""}`;
+      if (el.modalContact) el.modalContact.innerHTML = formatDeptContactHtml(r.department, r.contact);
       el.modalSiteLink.href = r.source_url;
       el.modalSiteLink.textContent = siteLinkLabel(r.source);
       if (el.modalNote) el.modalNote.classList.toggle("hidden", r.source !== "산학협력단");
@@ -1094,6 +1110,7 @@ const ICON = {
   flame: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c4 0 7-3 7-7 0-3-2-5-3-7-1 2-2 3-3 3 0-3-1-6-4-8 0 4-4 6-4 12 0 4 3 7 7 7z"/></svg>`,
   empty: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5M8.5 8.5l5 5M13.5 8.5l-5 5"/></svg>`,
   warn: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>`,
+  phone: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .3 2 .6 2.9a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.5c.9.3 1.9.5 2.9.6a2 2 0 0 1 1.8 2.1z"/></svg>`,
 };
 const HOME_EXAMPLES = [
   { icon: "doc",    label: "규정명으로",   q: "학사관리 규정",        hint: "규정 이름의 일부만 적어도 됩니다" },
