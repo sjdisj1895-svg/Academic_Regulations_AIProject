@@ -731,4 +731,18 @@ sudo nginx -t && sudo systemctl reload nginx
 | 외부에서 접속이 안 됨 | ① `--host 0.0.0.0`으로 켰는지, ② `ufw`에서 포트를 열었는지, ③ 학내망 자체의 상위 방화벽(정보전산처 관리)에서 막혀있지 않은지 순서대로 확인하세요. |
 | 권한 오류 (`Permission denied`) | `systemctl`/`ufw` 등 시스템 설정 명령은 `sudo`가 필요합니다. `venv` 폴더나 프로젝트 폴더의 소유자가 실행 계정과 다르면 `chown`으로 맞춰주세요. |
 
+### 9-10. 형상관리(GitLab) 서버를 별도로 구축했다면
+
+위 9번 섹션은 "이 검색 서비스 앱" 자체를 서버에 배포하는 방법입니다. 코드를
+보관·관리하는 **형상관리 서버(GitLab)를 Docker로 직접 구축**하는 절차(리버스
+프록시 연동, SSL 인증서 오류, 서버 보안 솔루션으로 인한 SSH 차단 등 실제로 겪은
+문제와 해결책 포함)는 별도 문서로 정리해뒀습니다:
+
+→ [`docs_mockups/gitlab_server_setup_manual.md`](docs_mockups/gitlab_server_setup_manual.md)
+
+새 서버에 이 프로젝트를 처음부터 다시 올리는 경우, 보통 다음 순서로 진행합니다:
+1. `gitlab_server_setup_manual.md`로 GitLab 서버 구축 + 기존 저장소 이전
+2. 위 9-1~9-9(`git clone`부터 nginx 연동까지)로 이 앱 자체를 배포
+3. `gitlab_server_setup_manual.md` 10번(배포 스크립트)으로 "git push → 서버에서 `deploy` 한 번"만으로 갱신되게 연결
+
 문의: 정보전산처 (시스템 운영) / 총무과 055-772-0334 (대학 규정) / 산학연구과 055-772-0211 (산학협력단 규정)
