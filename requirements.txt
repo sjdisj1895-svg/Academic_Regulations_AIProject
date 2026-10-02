@@ -1,0 +1,15 @@
+# 운영 서버(검색+AI 질문 API) 실행에 필요한 패키지.
+# 설치: pip install -r requirements.txt
+# (문서 수집용 스크립트(generate_*.py 등)의 docx/pptx/PIL 같은 부가 패키지는 제외 — 운영에는 불필요)
+
+fastapi
+uvicorn[standard]
+pydantic
+
+# 검색 엔진 (BM25는 자체 구현 bm25_lite.py라 패키지 불필요)
+sentence-transformers
+chromadb
+pysqlite3-binary     # 리눅스에서 시스템 sqlite3가 오래된 경우 ChromaDB가 요구하는 버전으로 교체 (없어도 동작엔 지장 없음)
+
+# RAG(AI 질문하기) — 학교 FactChat API(OpenAI 호환) 호출용
+openai
