@@ -22,6 +22,7 @@ import json
 import os
 import sys
 import threading
+import traceback
 import urllib.error
 import urllib.request
 
@@ -126,6 +127,7 @@ def review_merge_request(project_id: int, mr_iid: int, commit_sha: str):
             comment = f"🤖 **Claude 자동 리뷰**\n\n{review}"
         except Exception as e:
             print(f"[gitlab_review_bot] Claude 호출 실패: {e}")
+            traceback.print_exc()
             return
 
     try:
