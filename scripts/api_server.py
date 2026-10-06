@@ -18,7 +18,7 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
 from datetime import datetime
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse
@@ -31,6 +31,7 @@ DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from search_engine import SearchEngine
 import rag_engine
+import gitlab_review_bot
 
 app = FastAPI(
     title="경상국립대학교 규정 통합 검색 API",
@@ -601,6 +602,19 @@ def get_regulation_detail(reg_id: str):
     if not reg:
         raise HTTPException(status_code=404, detail="해당 규정을 찾을 수 없습니다.")
     return reg
+
+
+@app.post("/api/gitlab/webhook", tags=["연동"],
+          summary="GitLab Merge Request Webhook 수신 - Claude 자동 코드 리뷰")
+async def gitlab_webhook(request: Request):
+    secret = os.environ.get("GITLAB_WEBHOOK_SECRET", "")
+    if not secret or request.headers.get("X-Gitlab-Token") != secret:
+        raise HTTPException(status_code=401, detail="Webhook 인증 실패")
+    payload = await request.json()
+    # 실제 리뷰(diff 조회 + Claude 호출 + 댓글 등록)는 백그라운드 스레드로 넘긴다 —
+    # GitLab은 Webhook 응답이 느리면(수 초 이상) 전송 실패로 간주하기 때문.
+    gitlab_review_bot.handle_webhook_payload(payload)
+    return {"ok": True}
 
 
 # ---------------------------------------------------------- 웹 화면(T4) 서빙

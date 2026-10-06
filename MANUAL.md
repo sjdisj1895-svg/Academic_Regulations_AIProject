@@ -745,4 +745,51 @@ sudo nginx -t && sudo systemctl reload nginx
 2. 위 9-1~9-9(`git clone`부터 nginx 연동까지)로 이 앱 자체를 배포
 3. `gitlab_server_setup_manual.md` 10번(배포 스크립트)으로 "git push → 서버에서 `deploy` 한 번"만으로 갱신되게 연결
 
+## 10. GitLab Merge Request 자동 리뷰(Claude 연동) 설정 (선택)
+
+Merge Request가 생성·업데이트될 때마다 Claude가 변경 내용(diff)을 자동으로 훑어보고
+MR에 댓글을 남겨주는 기능입니다. 새 API 키 발급 없이, AI 질문하기(RAG) 기능에서
+쓰는 학교 FactChat API(`GNU_RAG_API_KEY` 등)를 그대로 재사용합니다.
+
+### 10-1. GitLab 쪽 설정
+
+1. 프로젝트 → **Settings → Webhooks** → **Add new webhook**
+   - URL: `https://<운영 도메인>/api/gitlab/webhook`
+   - Secret token: 임의의 문자열 생성(예: `openssl rand -hex 20`) — 아래 10-2의
+     `GITLAB_WEBHOOK_SECRET`과 동일한 값이어야 합니다.
+   - Trigger: **Merge request events**만 체크
+   - **Add webhook**
+2. 프로젝트 → **Settings → Access Tokens** → scope `api` 체크해서 토큰 발급
+   (이 값이 아래 `GITLAB_API_TOKEN`)
+
+### 10-2. 서버 쪽 환경변수 추가
+
+systemd 서비스 파일(`/etc/systemd/system/gnu-regulation-search.service`)의
+`Environment=` 항목에 아래 세 줄을 추가합니다(9-6 참고).
+
+```ini
+Environment=GITLAB_API_TOKEN=<10-1에서 발급한 토큰>
+Environment=GITLAB_BASE_URL=https://gapps.gnu.ac.kr/gitlab/api/v4
+Environment=GITLAB_WEBHOOK_SECRET=<10-1에서 설정한 Secret token>
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart gnu-regulation-search
+```
+
+### 10-3. 동작 확인
+
+GitLab에서 테스트용 MR을 하나 만들어보면, 몇 초~몇십 초 뒤 MR 댓글창에
+"🤖 Claude 자동 리뷰"로 시작하는 댓글이 달리는지 확인합니다. 안 달리면:
+
+| 증상 | 원인·해결 |
+|---|---|
+| 댓글이 아예 안 달림 | `journalctl -u gnu-regulation-search -f`로 `[gitlab_review_bot]` 로그 확인. `GITLAB_API_TOKEN`/`GITLAB_BASE_URL` 미설정이면 로그에 안내 문구가 찍힙니다. |
+| GitLab Webhook 설정 화면에 "실패" 표시 | Settings → Webhooks에서 해당 webhook의 **Recent events**를 열어 응답 코드 확인. `401`이면 Secret token 불일치. |
+| "변경량이 많아 자동 리뷰를 생략했습니다" 댓글만 달림 | 정상 동작입니다(500줄 초과 시 비용 절감을 위해 생략). `scripts/gitlab_review_bot.py`의 `MAX_DIFF_LINES`로 기준 조정 가능. |
+
+데이터 파일(`data/*.json`)이나 이미지만 변경된 MR은 리뷰 대상에서 자동 제외됩니다
+(`scripts/gitlab_review_bot.py`의 `SKIP_EXTENSIONS`/`SKIP_PATH_PREFIXES`).
+
 문의: 정보전산처 (시스템 운영) / 총무과 055-772-0334 (대학 규정) / 산학연구과 055-772-0211 (산학협력단 규정)
