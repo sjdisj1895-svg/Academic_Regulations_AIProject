@@ -229,7 +229,7 @@ add_text(s, Inches(0.6), Inches(4.8), Inches(11.8), Inches(0.6),
 s = add_slide()
 add_kicker_title(s, "HOW TO SEARCH · STEP 1", "검색창에 키워드 입력")
 add_screenshot(s, SCREEN_HOME, "메인 화면 — 검색창에 찾고 싶은 규정명이나 단어를 입력하고 검색")
-add_bullets(s, Inches(9.1), Inches(1.9), Inches(3.6), Inches(4.5), [
+add_bullets(s, Inches(8.8), Inches(1.9), Inches(4.1), Inches(4.5), [
     "규정명 일부만 적어도 검색됩니다.",
     "조항 본문에 있는 단어로도 검색됩니다.",
     "예시 검색어 버튼을 눌러 바로 체험해볼 수 있습니다.",
@@ -239,8 +239,8 @@ add_bullets(s, Inches(9.1), Inches(1.9), Inches(3.6), Inches(4.5), [
 s = add_slide()
 add_kicker_title(s, "HOW TO SEARCH · STEP 2", "필터로 범위 좁히기")
 add_screenshot(s, SCREEN_RESULTS, "검색 결과 화면 — 출처·분류 필터로 원하는 범위만 골라볼 수 있음")
-add_bullets(s, Inches(9.1), Inches(1.9), Inches(3.6), Inches(4.5), [
-    "'전체 / 대학 / 산학협력단' 중 선택",
+add_bullets(s, Inches(8.8), Inches(1.9), Inches(4.1), Inches(4.5), [
+    "전체·대학·산학협력단 중 선택",
     "분류 칩(학칙·규정·지침 등) 클릭",
     "'필터 더보기'에서 폐지 규정 포함,\n최근 개정만 보기 등 설정 가능",
 ], size=15)
@@ -249,7 +249,7 @@ add_bullets(s, Inches(9.1), Inches(1.9), Inches(3.6), Inches(4.5), [
 s = add_slide()
 add_kicker_title(s, "HOW TO SEARCH · STEP 3", "조항 미리보기 · 담당부서 확인")
 add_screenshot(s, SCREEN_PREVIEW, "조항 클릭 시 뜨는 미리보기 — 담당부서·전화번호가 바로 보임")
-add_bullets(s, Inches(9.1), Inches(1.9), Inches(3.6), Inches(4.5), [
+add_bullets(s, Inches(8.8), Inches(1.9), Inches(4.1), Inches(4.5), [
     "담당부서 전화번호 클릭 시\n바로 전화 연결",
     "'규정 전문' 탭에서 전체 조문 확인",
     "'관련 사이트로 이동'으로\n원본 게시글 확인",
@@ -262,7 +262,7 @@ faqs = [
     ("검색을 했는데 결과가 안 나와요.",
      "검색어 철자를 확인하고, 적용된 필터를 '모두 해제'한 뒤 다시 검색해보세요. "
      "긴 문장보다 핵심 단어 위주로 검색하면 더 잘 찾아집니다."),
-    ("우리 부서 규정이 안 보여요.",
+    ("우리 부서 이전 규정이 안 보여요.",
      "기본값은 '현재 시행 중인 규정'만 보여줍니다. 폐지·개정 전 규정은 "
      "'필터 더보기 → 폐지된 규정도 포함'을 체크하세요."),
     ("모바일에서도 똑같이 쓸 수 있나요?",
